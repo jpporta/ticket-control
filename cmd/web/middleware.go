@@ -15,7 +15,7 @@ func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, 
 	ip := r.RemoteAddr
 	key := r.Header.Get("x-api-key")
 
-	log.Println("[ ", r.Method, " ] - ", r.RequestURI, " - ", r.RemoteAddr)
+	log.Println("[", r.Method, "] - ", r.RequestURI, " - ", r.RemoteAddr)
 	var userId int32
 	if key != "" {
 		id, err := h.app.Q.GetUserByKey(r.Context(), key)
