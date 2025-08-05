@@ -1,0 +1,43 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jpporta/ticket-control/internal/repository"
+)
+
+type middleware func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc)
+
+func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	ip := r.RemoteAddr
+	key := r.Header.Get("x-api-key")
+
+	log.Println("[ ", r.Method, " ] - ", r.RequestURI, " - ", r.RemoteAddr)
+	var userId int32
+	if key != "" {
+		id, err := h.app.Q.GetUserByKey(r.Context(), key)
+		if err != nil {
+			log.Println("Error getting user by key:", err)
+		}
+		userId = id
+	}
+	h.app.Q.AddAccess(r.Context(), repository.AddAccessParams{
+		UserID:    pgtype.Int4{Int32: userId, Valid: userId != 0},
+		IpAddress: ip,
+	})
+	ctx := context.WithValue(r.Context(), "userId", userId)
+	r = r.WithContext(ctx)
+	next(w, r)
+}
+
+func (h *Handlers) authMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	id := r.Context().Value("userId").(int32)
+	if id == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	next(w, r)
+}
