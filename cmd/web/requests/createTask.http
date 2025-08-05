@@ -1,7 +1,7 @@
 @host = http://localhost:8080
 
 POST {{host}}/task HTTP/1.1
-X-Api-Key: wwCenJVqoQwOyUXvCGLfhBIXq7xTKBotVelaIO9OqH0NWp5aa01XBg3VkAkZY9xd
+X-Api-Key: {{API_KEY}}
 
 {
   "title": "Test Task"

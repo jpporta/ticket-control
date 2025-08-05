@@ -3,6 +3,13 @@ ifneq (,$(wildcard ./.env))
     export
 endif
 
+tidy:
+	@echo "Running go mod tidy..."
+	go mod tidy
+
+cli:
+	@echo "Running the CLI application..."
+	go run ./cmd/cli/*
 run:
 	@echo "Running the application..."
 	go run ./cmd/web/*
