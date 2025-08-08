@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jpporta/ticket-control/internal"
-	"github.com/jpporta/ticket-control/internal/repository"
 )
 
 type Handlers struct {
@@ -22,23 +20,35 @@ type CreateTask struct {
 
 func (h *Handlers) createTask(w http.ResponseWriter, r *http.Request) {
 	userId := r.Context().Value("userId").(int32)
+
+	limitReached, err := h.app.UserHasReachedTaskLimit(r.Context(), userId)
+	if err != nil {
+		http.Error(w, "Error checking task limit", http.StatusInternalServerError)
+		return
+	}
+
+	if limitReached {
+		http.Error(w, "You have reached your task limit for today", http.StatusForbidden)
+		return
+	}
+
 	task := CreateTask{
 		Priority: 1,
 	}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&task)
-	if err != nil || task.Title == "" {
-		http.Error(w, "Task does not look right", http.StatusBadRequest)
-	}
-	res, err := h.app.Q.CreateTask(r.Context(), repository.CreateTaskParams{
-		Title:       task.Title,
-		Description: pgtype.Text{String: task.Description, Valid: task.Description != ""},
-		Priority:    pgtype.Int4{Int32: task.Priority, Valid: task.Priority > 0 && task.Priority <= 5},
-		CreatedBy: userId,
-	})
-
+	err = decoder.Decode(&task)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
+		return
 	}
-	fmt.Fprintf(w, "%v", res)
+
+	total, err := h.app.CreateTask(r.Context(), task.Title, task.Description, task.Priority, userId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating task: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"id": %d}`, total)
 }

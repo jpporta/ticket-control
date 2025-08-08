@@ -6,4 +6,4 @@ INSERT INTO public."user" (
 RETURNING id;
 
 -- name: GetUserByKey :one
-select id from public."user" where api_key = $1;
+select id, name from public."user" where api_key = $1;

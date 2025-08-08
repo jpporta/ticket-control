@@ -36,14 +36,21 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (int32, 
 	return id, err
 }
 
-const totalTasksFromUserToday = `-- name: TotalTasksFromUserToday :one
-SELECT COUNT(*) AS total FROM task 
-WHERE created_by = $1 
-AND DATE(created_at) = CURRENT_DATE
+const getNoUsersTask = `-- name: GetNoUsersTask :one
+SELECT count(*) AS total FROM task
+WHERE created_by = $1
+AND created_at >= $2
+AND created_at < $3
 `
 
-func (q *Queries) TotalTasksFromUserToday(ctx context.Context, createdBy int32) (int64, error) {
-	row := q.db.QueryRow(ctx, totalTasksFromUserToday, createdBy)
+type GetNoUsersTaskParams struct {
+	CreatedBy   int32
+	CreatedAt   pgtype.Timestamp
+	CreatedAt_2 pgtype.Timestamp
+}
+
+func (q *Queries) GetNoUsersTask(ctx context.Context, arg GetNoUsersTaskParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getNoUsersTask, arg.CreatedBy, arg.CreatedAt, arg.CreatedAt_2)
 	var total int64
 	err := row.Scan(&total)
 	return total, err
