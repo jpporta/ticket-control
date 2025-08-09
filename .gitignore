@@ -1,4 +1,5 @@
 data/**/*
 .env
+**/*.pdf
 
 http-client.env.json

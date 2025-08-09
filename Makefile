@@ -29,3 +29,8 @@ down:
 generate:
 	@echo "Generating code for queries..."
 	sqlc generate
+
+typst-task:
+	@echo "Watch Typst task..."
+	typst watch ./internal/printer/models/task.typ task.pdf
+

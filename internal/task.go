@@ -42,6 +42,16 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 
 	// Print, and if it fails, delete from DB
 	p := printer.New(ctx)
-	close := p.Start()
+	close, err := p.Start()
+	if err != nil {
+		err := a.Q.DeleteLastTask(ctx, userId)
+		if err != nil {
+			return 0, fmt.Errorf("Error deleting task after printer start failure: %w", err)
+		}
+		return 0, fmt.Errorf("Error starting printer: %w", err)
+	}
+	defer close()
+	name := ctx.Value("userName").(string)
+	err = p.PrintTask(title, description, priority, name)
 	return res, nil
 }

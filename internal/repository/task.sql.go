@@ -36,6 +36,21 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (int32, 
 	return id, err
 }
 
+const deleteLastTask = `-- name: DeleteLastTask :exec
+DELETE FROM task
+WHERE id = (
+	SELECT id FROM task as t
+	WHERE t.created_by = $1
+	ORDER BY created_at DESC
+	LIMIT 1
+)
+`
+
+func (q *Queries) DeleteLastTask(ctx context.Context, createdBy int32) error {
+	_, err := q.db.Exec(ctx, deleteLastTask, createdBy)
+	return err
+}
+
 const getNoUsersTask = `-- name: GetNoUsersTask :one
 SELECT count(*) AS total FROM task
 WHERE created_by = $1

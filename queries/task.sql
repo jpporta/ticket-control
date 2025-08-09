@@ -9,3 +9,11 @@ WHERE created_by = $1
 AND created_at >= $2
 AND created_at < $3;
 
+-- name: DeleteLastTask :exec
+DELETE FROM task
+WHERE id = (
+	SELECT id FROM task as t
+	WHERE t.created_by = $1
+	ORDER BY created_at DESC
+	LIMIT 1
+);

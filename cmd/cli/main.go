@@ -4,16 +4,54 @@ import (
 	"context"
 	"image"
 	"image/draw"
-	"os"
-
 	_ "image/jpeg"
+	"os"
 
 	"github.com/jpporta/ticket-control/internal/printer"
 	"github.com/jpporta/ticket-control/internal/utils"
 )
 
 func main() {
+	printTaskTest()
+}
+
+func simpleTest() {
 	ctx := context.Background()
+
+	// Printer
+	p := printer.New(ctx)
+	close, err := p.Start()
+	defer close()
+
+	if err != nil {
+		panic(err)
+	}
+	err = p.PrintText("Hello World\n")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func printTaskTest() {
+	ctx := context.Background()
+
+	// Printer
+	p := printer.New(ctx)
+	close, err := p.Start()
+	defer close()
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = p.PrintTask("Test Task", "This is a test task description", 3, "John Doe")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func printImageTest() {
+ctx := context.Background()
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -56,4 +94,5 @@ func main() {
 
 	d.OrderedDither16()
 	p.PrintImage(d.NewImage)
+	p.Cut()
 }

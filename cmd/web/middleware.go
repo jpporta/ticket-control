@@ -21,10 +21,10 @@ func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, 
 		w.Write([]byte("Missing API key"))
 		return
 	}
-		user, err := h.app.Q.GetUserByKey(r.Context(), key)
-		if err != nil {
-			log.Println("Error getting user by key:", err)
-		}
+	user, err := h.app.Q.GetUserByKey(r.Context(), key)
+	if err != nil {
+		log.Println("Error getting user by key:", err)
+	}
 	h.app.Q.AddAccess(r.Context(), repository.AddAccessParams{
 		UserID:    pgtype.Int4{Int32: user.ID, Valid: user.ID != 0},
 		IpAddress: ip,
@@ -32,15 +32,14 @@ func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, 
 	ctx := context.WithValue(
 		context.WithValue(
 			r.Context(), "userId", user.ID,
-			),
-		 "userName", user.Name)
+		),
+		"userName", user.Name)
 	r = r.WithContext(ctx)
 	next(w, r)
 }
 
 func (h *Handlers) authMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	id := r.Context().Value("userId").(int32)
-	log.Println(r.Header)
 	if id == 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return

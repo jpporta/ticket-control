@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"text/template"
 
 	"github.com/hennedo/escpos"
 	"github.com/jackc/pgx/v5"
@@ -13,10 +14,11 @@ import (
 )
 
 type Printer struct {
-	IP      string `json:"ip"`
-	Port    int    `json:"port"`
-	Enabled bool   `json:"enabled"`
-	e       *escpos.Escpos
+	IP        string `json:"ip"`
+	Port      int    `json:"port"`
+	Enabled   bool   `json:"enabled"`
+	e         *escpos.Escpos
+	templates map[string]*template.Template
 }
 
 func New(ctx context.Context) *Printer {
@@ -36,6 +38,11 @@ func New(ctx context.Context) *Printer {
 }
 
 func (p *Printer) Start() (func(), error) {
+	err := p.loadTemplates()
+	if err != nil {
+		return nil, err
+	}
+
 	socket, err := net.Dial("tcp", p.IP+":"+strconv.Itoa(p.Port))
 	if err != nil {
 		return nil, err
@@ -48,4 +55,44 @@ func (p *Printer) Start() (func(), error) {
 			panic(err)
 		}
 	}, nil
+}
+
+func (p *Printer) Reset() {
+	p.e.WriteRaw([]byte{0x1B, byte('@')})
+	p.e.WriteRaw([]byte{0x1B, 0x52, 0x00})
+}
+
+func (p *Printer) PrintText(text string) error {
+	if !p.Enabled {
+		return nil
+	}
+	_, err := p.e.Write(text)
+	if err != nil {
+		return err
+	}
+
+	err = p.e.PrintAndCut()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Printer) Cut() {
+	p.e.WriteRaw([]byte{0x1B, 0x6D})
+}
+
+func (p *Printer) loadTemplates() error {
+	p.templates = make(map[string]*template.Template)
+	// Task template
+	task_template_string, err := os.ReadFile("./models/task.typ")
+	if err != nil {
+		return err
+	}
+	task_template, err := template.New("task").Parse(string(task_template_string))
+	if err != nil {
+		return err
+	}
+	p.templates["task"] = task_template
+	return nil
 }
