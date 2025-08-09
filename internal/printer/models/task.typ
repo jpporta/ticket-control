@@ -1,4 +1,4 @@
-#set page(width: 320pt, height: auto)
+#set page(width: 300pt, height: auto)
 #set align(center)
 #set text(
 		font: "JetBrainsMono NF",
