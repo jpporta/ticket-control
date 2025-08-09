@@ -44,8 +44,8 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 	p := printer.New(ctx)
 	close, err := p.Start()
 	if err != nil {
-		err := a.Q.DeleteLastTask(ctx, userId)
-		if err != nil {
+		err_2 := a.Q.DeleteLastTask(ctx, userId)
+		if err_2 != nil {
 			return 0, fmt.Errorf("Error deleting task after printer start failure: %w", err)
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)

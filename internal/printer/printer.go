@@ -2,6 +2,7 @@ package printer
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"net"
 	"os"
@@ -12,6 +13,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jpporta/ticket-control/internal/repository"
 )
+
+//go:embed models/*.typ
+var models embed.FS
 
 type Printer struct {
 	IP        string `json:"ip"`
@@ -85,7 +89,7 @@ func (p *Printer) Cut() {
 func (p *Printer) loadTemplates() error {
 	p.templates = make(map[string]*template.Template)
 	// Task template
-	task_template_string, err := os.ReadFile("./models/task.typ")
+	task_template_string, err := models.ReadFile("models/task.typ")
 	if err != nil {
 		return err
 	}

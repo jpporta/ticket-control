@@ -1,16 +1,16 @@
-FROM golang:1.24 as builder
+FROM alpine:latest as builder
 
-ARG CGO_ENABLED=0
 WORKDIR /app
+RUN apk update && apk add go
 
 COPY . .
 
-
-RUN go mod tidy
 RUN go build -o server ./cmd/web/*
 
-FROM scratch
-RUN apk update && apk add typst
+FROM alpine:latest
+RUN apk update && apk add typst fontconfig
 EXPOSE 8080
-COPY --from=builder /app/server /server
+COPY --from=builder /app/server ./
+COPY --from=builder /app/static/JetBrainsMono-NFM.ttf /usr/local/share/fonts/
+RUN fc-cache -f -v
 ENTRYPOINT ["./server"]
