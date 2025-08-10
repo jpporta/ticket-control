@@ -9,7 +9,7 @@ tidy:
 
 cli:
 	@echo "Running the CLI application..."
-	go run ./cmd/cli/*
+	go run ./cmd/cli/* --name="Andiara Porta"
 run:
 	@echo "Running the application..."
 	go run ./cmd/web/*

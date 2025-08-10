@@ -98,5 +98,15 @@ func (p *Printer) loadTemplates() error {
 		return err
 	}
 	p.templates["task"] = task_template
+	// List template
+	list_template_string, err := models.ReadFile("models/list.typ")
+	if err != nil {
+		return err
+	}
+	list_template, err := template.New("list").Parse(string(list_template_string))
+	if err != nil {
+		return err
+	}
+	p.templates["list"] = list_template
 	return nil
 }

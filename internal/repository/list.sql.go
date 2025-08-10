@@ -30,14 +30,36 @@ func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) (int32, 
 	return id, err
 }
 
-const totalListsFromUserToday = `-- name: TotalListsFromUserToday :one
-SELECT COUNT(*) AS total FROM list 
-WHERE created_by = $1 
-AND DATE(created_at) = CURRENT_DATE
+const deleteLastList = `-- name: DeleteLastList :exec
+DELETE FROM list
+WHERE id = (
+	SELECT id FROM task as t
+	WHERE t.created_by = $1
+	ORDER BY created_at DESC
+	LIMIT 1
+)
 `
 
-func (q *Queries) TotalListsFromUserToday(ctx context.Context, createdBy int32) (int64, error) {
-	row := q.db.QueryRow(ctx, totalListsFromUserToday, createdBy)
+func (q *Queries) DeleteLastList(ctx context.Context, createdBy int32) error {
+	_, err := q.db.Exec(ctx, deleteLastList, createdBy)
+	return err
+}
+
+const totalListsFromUser = `-- name: TotalListsFromUser :one
+SELECT count(*) AS total FROM list
+WHERE created_by = $1
+AND created_at >= $2
+AND created_at < $3
+`
+
+type TotalListsFromUserParams struct {
+	CreatedBy   int32
+	CreatedAt   pgtype.Timestamp
+	CreatedAt_2 pgtype.Timestamp
+}
+
+func (q *Queries) TotalListsFromUser(ctx context.Context, arg TotalListsFromUserParams) (int64, error) {
+	row := q.db.QueryRow(ctx, totalListsFromUser, arg.CreatedBy, arg.CreatedAt, arg.CreatedAt_2)
 	var total int64
 	err := row.Scan(&total)
 	return total, err

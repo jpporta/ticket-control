@@ -1,10 +1,10 @@
-@host = http://localhost:8000
+@host = https://ticket.joaoporta.com
 
 POST {{host}}/task HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-  "description": "Praticar chines por 15min",
-  "priority": 5,
-  "title": "HelloChinese"
+  "description": "Create simple bash to send tasks",
+  "priority": 2,
+  "title": "Task Management"
 }

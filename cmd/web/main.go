@@ -41,6 +41,7 @@ func main() {
 	protectedRoute := chainMiddleware(h.logRequestMiddleware, h.authMiddleware)
 
 	mux.HandleFunc("POST /task", protectedRoute(h.createTask))
+	mux.HandleFunc("POST /list", protectedRoute(h.createList))
 
 	err = http.ListenAndServe(":8000", mux)
 	if err != nil {

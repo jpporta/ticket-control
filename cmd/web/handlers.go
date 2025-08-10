@@ -12,6 +12,43 @@ type Handlers struct {
 	app *internal.Application
 }
 
+type CreateList struct {
+	Title string   `json:"title"`
+	Items []string `json:"items"`
+}
+
+func (h *Handlers) createList(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("userId").(int32)
+
+	limitReached, err := h.app.UserHasReachedListLimit(r.Context(), userId)
+	if err != nil {
+		http.Error(w, "Error checking list limit", http.StatusInternalServerError)
+		return
+	}
+	if limitReached {
+		http.Error(w, "You have reached your list limit for today", http.StatusForbidden)
+		return
+	}
+
+	var list CreateList
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&list)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	id, err := h.app.CreateList(r.Context(), userId, list.Title, list.Items)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating list: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"id": %d}`, id)
+}
+
 type CreateTask struct {
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`

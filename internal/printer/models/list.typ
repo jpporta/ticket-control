@@ -2,13 +2,13 @@
 #set align(center)
 #set text(
 		font: "JetBrainsMono NF",
-		size: 13pt
+		size: 13pt,
 )
-
-{{ .PriorityDisplay }}
 = {{ .Title }}
 #sub[{{ .CreatedBy }}]
 #line(length: 50%)
 
-
-{{ .Description }}
+#set align(left)
+{{ range .Content }}
+- [ ] {{ . }}
+{{ end }}
