@@ -17,7 +17,21 @@ import (
 )
 
 func main() {
-	printListTest()
+	createLinkTest()
+}
+
+func createLinkTest() {
+	ctx := context.WithValue(context.Background(), "userName", "Joao Porta Testing")
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close(context.Background())
+	app := internal.New(conn)
+	_, err = app.CreateLink(ctx, 2, "Testing Link", "https://www.google.com")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func printListTest() {

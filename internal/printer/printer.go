@@ -108,5 +108,15 @@ func (p *Printer) loadTemplates() error {
 		return err
 	}
 	p.templates["list"] = list_template
+	// Link Header template
+	link_header_template_string, err := models.ReadFile("models/link_header.typ")
+	if err != nil {
+		return err
+	}
+	link_header_template, err := template.New("list").Parse(string(link_header_template_string))
+	if err != nil {
+		return err
+	}
+	p.templates["link_header"] = link_header_template
 	return nil
 }

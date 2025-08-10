@@ -12,10 +12,48 @@ type Handlers struct {
 	app *internal.Application
 }
 
+type CreateLink struct {
+	Title string `json:"title"`
+	Url   string `json:"url"`
+}
+
+func (h *Handlers) createLink(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("userId").(int32)
+
+	limitReached, err := h.app.UserHasReachedLinkLimit(r.Context(), userId)
+	if err != nil {
+		http.Error(w, "Error checking link limit", http.StatusInternalServerError)
+		return
+	}
+	if limitReached {
+		http.Error(w, "You have reached your link limit for today", http.StatusForbidden)
+		return
+	}
+
+	var link CreateLink
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&link)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	id, err := h.app.CreateLink(r.Context(), userId, link.Title, link.Url)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating link: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"id": %d}`, id)
+}
+
 type CreateList struct {
 	Title string   `json:"title"`
 	Items []string `json:"items"`
 }
+
 
 func (h *Handlers) createList(w http.ResponseWriter, r *http.Request) {
 	userId := r.Context().Value("userId").(int32)

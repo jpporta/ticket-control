@@ -23,6 +23,15 @@ type Config struct {
 	UpdatedAt pgtype.Timestamp
 }
 
+type Link struct {
+	ID        int32
+	Url       string
+	Title     string
+	CreatedAt pgtype.Timestamp
+	CreatedBy int32
+	UpdatedAt pgtype.Timestamp
+}
+
 type List struct {
 	ID        int32
 	Title     string
