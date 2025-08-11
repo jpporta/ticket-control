@@ -15,6 +15,7 @@ COPY --from=builder /app/static/JetBrainsMono-NFM.ttf /usr/share/fonts/truetype/
 
 RUN fc-cache -f -v
 RUN fc-list | grep "Jet"
+ENV TZ=America/Sao_Paulo
 
 EXPOSE 8080
 ENTRYPOINT ["./server"]
