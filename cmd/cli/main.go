@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	createLinkTest()
+	printTaskTest()
 }
 
 func createLinkTest() {

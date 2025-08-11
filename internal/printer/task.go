@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type taskInput struct {
@@ -14,6 +15,7 @@ type taskInput struct {
 	Description     string
 	PriorityDisplay string
 	CreatedBy       string
+	CreatedAt       time.Time
 }
 
 func (p *Printer) PrintTask(
@@ -33,8 +35,9 @@ func (p *Printer) PrintTask(
 	template.Execute(file, taskInput{
 		Title:           title,
 		Description:     description,
-		PriorityDisplay: fmt.Sprintf("%d", priority),
+		PriorityDisplay: strings.TrimSpace(strings.Repeat(" ", int(priority))),
 		CreatedBy:       createdBy,
+		CreatedAt:       time.Now(),
 	})
 	cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
 	err = cmd.Run()
@@ -51,8 +54,8 @@ func (p *Printer) PrintTask(
 	if err != nil {
 		return fmt.Errorf("error decoding image: %w", err)
 	}
-	if img.Bounds().Max.Y % 8 != 0 {
-		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y - (img.Bounds().Max.Y % 8))
+	if img.Bounds().Max.Y%8 != 0 {
+		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
 		img = img.(interface {
 			SubImage(r image.Rectangle) image.Image
 		}).SubImage(cropRect)
