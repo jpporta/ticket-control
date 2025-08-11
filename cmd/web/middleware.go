@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jpporta/ticket-control/internal/repository"
@@ -14,8 +15,11 @@ type middleware func(w http.ResponseWriter, r *http.Request, next http.HandlerFu
 func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	ip := r.RemoteAddr
 	key := r.Header.Get("x-api-key")
+	start := time.Now()
 
-	log.Println("[", r.Method, "] - ", r.RequestURI, " - ", r.RemoteAddr)
+	defer func() {
+		log.Println("[", r.Method, "] - ", r.RequestURI, " - ", r.RemoteAddr, " - Took:", time.Since(start))
+	}()
 	if key == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("Missing API key"))
