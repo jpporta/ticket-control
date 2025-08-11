@@ -8,6 +8,7 @@ import (
 	"image/draw"
 	_ "image/jpeg"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jpporta/ticket-control/internal"
@@ -17,7 +18,7 @@ import (
 )
 
 func main() {
-	printTaskTest()
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
 }
 
 func createLinkTest() {

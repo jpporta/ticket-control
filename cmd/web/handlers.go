@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/jpporta/ticket-control/internal"
 )
@@ -53,7 +54,6 @@ type CreateList struct {
 	Title string   `json:"title"`
 	Items []string `json:"items"`
 }
-
 
 func (h *Handlers) createList(w http.ResponseWriter, r *http.Request) {
 	userId := r.Context().Value("userId").(int32)
@@ -126,4 +126,14 @@ func (h *Handlers) createTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"id": %d}`, total)
+}
+
+func (h *Handlers) healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]string{"status": "ok", "now": time.Now().Local().Format(time.RFC3339)}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
