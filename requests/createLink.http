@@ -1,6 +1,6 @@
-@host = http://localhost:8000
+@host = https://ticket.joaoporta.com
 
-# @host https://ticket.joaoporta.com
+# @host http://localhost:8000
 
 POST {{host}}/link HTTP/1.1
 X-Api-Key: {{API_KEY}}
