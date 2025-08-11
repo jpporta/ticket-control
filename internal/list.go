@@ -35,17 +35,16 @@ func (a *Application) CreateList(ctx context.Context, userId int32, title string
 	}
 	// Create in DB
 	res, err := a.Q.CreateList(ctx, repository.CreateListParams{
-		Title:       title,
-		Content:     pgtype.Text{String: content, Valid: content != ""},
-		CreatedBy:   userId,
+		Title:     title,
+		Content:   pgtype.Text{String: content, Valid: content != ""},
+		CreatedBy: userId,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("Error creating list")
 	}
 
 	// Print, and if it fails, delete from DB
-	p := printer.New(ctx)
-	close, err := p.Start()
+	p, err := printerInternal.New()
 	if err != nil {
 		err_2 := a.Q.DeleteLastList(ctx, userId)
 		if err_2 != nil {
@@ -53,11 +52,10 @@ func (a *Application) CreateList(ctx context.Context, userId int32, title string
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
-	defer close()
 	name := ctx.Value("userName").(string)
-	err = p.PrintList(printer.ListInput{
-		Title: title,
-		Content: items,
+	err = p.PrintList(printerInternal.ListInput{
+		Title:     title,
+		Content:   items,
 		CreatedBy: name,
 	})
 	return res, nil

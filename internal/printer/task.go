@@ -1,13 +1,13 @@
-package printer
+package printerInternal
 
 import (
 	"fmt"
 	"image"
-	_ "image/png"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+	_ "image/png"
 )
 
 type taskInput struct {
@@ -60,10 +60,10 @@ func (p *Printer) PrintTask(
 			SubImage(r image.Rectangle) image.Image
 		}).SubImage(cropRect)
 	}
-	p.Reset()
 	err = p.PrintImage(img)
 	if err != nil {
 		return fmt.Errorf("error printing image: %w", err)
 	}
 	return nil
 }
+

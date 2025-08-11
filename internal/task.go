@@ -41,8 +41,7 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 	}
 
 	// Print, and if it fails, delete from DB
-	p := printer.New(ctx)
-	close, err := p.Start()
+	p, err := printerInternal.New()
 	if err != nil {
 		err_2 := a.Q.DeleteLastTask(ctx, userId)
 		if err_2 != nil {
@@ -50,7 +49,6 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
-	defer close()
 	name := ctx.Value("userName").(string)
 	err = p.PrintTask(title, description, priority, name)
 	return res, nil

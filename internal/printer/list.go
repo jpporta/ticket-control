@@ -1,4 +1,4 @@
-package printer
+package printerInternal
 
 import (
 	"fmt"
@@ -10,9 +10,9 @@ import (
 )
 
 type ListInput struct {
-	Title           string
-	Content         []string
-	CreatedBy       string
+	Title     string
+	Content   []string
+	CreatedBy string
 }
 
 func (p *Printer) PrintList(
@@ -54,15 +54,14 @@ func (p *Printer) PrintList(
 	}
 
 	// Crop the image if its height is not a multiple of 8 for the printer
-	if img.Bounds().Max.Y % 8 != 0 {
-		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y - (img.Bounds().Max.Y % 8))
+	if img.Bounds().Max.Y%8 != 0 {
+		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
 		img = img.(interface {
 			SubImage(r image.Rectangle) image.Image
 		}).SubImage(cropRect)
 	}
 
 	// Reset the printer state
-	p.Reset()
 	err = p.PrintImage(img)
 	if err != nil {
 		return fmt.Errorf("error printing image: %w", err)

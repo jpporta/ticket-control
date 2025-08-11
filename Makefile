@@ -13,6 +13,9 @@ cli:
 run:
 	@echo "Running the application..."
 	go run ./cmd/web/*
+run-printer:
+	@echo "Running the printer..."
+	go run ./cmd/printer/*
 
 new_migration:
 	@echo "Creating new migration file..."

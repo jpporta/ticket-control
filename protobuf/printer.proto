@@ -1,0 +1,20 @@
+syntax = "proto3";
+package printer;
+
+option go_package = "./printer";
+
+message PrintJob {
+  bytes img = 1;
+}
+
+message PrintLinkJob {
+  string url = 1;
+  bytes header = 2;
+}
+
+message Empty {}
+
+service Printer {
+  rpc Print(PrintJob) returns (Empty);
+  rpc PrintLink(PrintLinkJob) returns (Empty);
+}

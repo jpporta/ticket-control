@@ -1,89 +1,32 @@
-package printer
+package printerInternal
 
 import (
+	"bytes"
 	"context"
 	"embed"
-	"encoding/json"
-	"net"
-	"os"
-	"strconv"
+	"fmt"
+	"image"
+	"image/png"
 	"text/template"
 
-	"github.com/hennedo/escpos"
-	"github.com/jackc/pgx/v5"
-	"github.com/jpporta/ticket-control/internal/repository"
+	"github.com/jpporta/ticket-control/printer"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 //go:embed models/*.typ
 var models embed.FS
 
 type Printer struct {
-	IP        string `json:"ip"`
-	Port      int    `json:"port"`
-	Enabled   bool   `json:"enabled"`
-	e         *escpos.Escpos
 	templates map[string]*template.Template
 }
 
-func New(ctx context.Context) *Printer {
-	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close(ctx)
-	queries := repository.New(conn)
-	config, err := queries.GetPrinterConfig(ctx)
-	printer := &Printer{}
-
-	if err = json.Unmarshal(config, printer); err != nil {
-		panic(err)
-	}
-	return printer
-}
-
-func (p *Printer) Start() (func(), error) {
-	err := p.loadTemplates()
-	if err != nil {
+func New() (*Printer, error) {
+	p := &Printer{}
+	if err := p.loadTemplates(); err != nil {
 		return nil, err
 	}
-
-	socket, err := net.Dial("tcp", p.IP+":"+strconv.Itoa(p.Port))
-	if err != nil {
-		return nil, err
-	}
-
-	p.e = escpos.New(socket)
-	return func() {
-		err := socket.Close()
-		if err != nil {
-			panic(err)
-		}
-	}, nil
-}
-
-func (p *Printer) Reset() {
-	p.e.WriteRaw([]byte{0x1B, byte('@')})
-	p.e.WriteRaw([]byte{0x1B, 0x52, 0x00})
-}
-
-func (p *Printer) PrintText(text string) error {
-	if !p.Enabled {
-		return nil
-	}
-	_, err := p.e.Write(text)
-	if err != nil {
-		return err
-	}
-
-	err = p.e.PrintAndCut()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *Printer) Cut() {
-	p.e.WriteRaw([]byte{0x1B, 0x6D})
+	return p, nil
 }
 
 func (p *Printer) loadTemplates() error {
@@ -118,5 +61,50 @@ func (p *Printer) loadTemplates() error {
 		return err
 	}
 	p.templates["link_header"] = link_header_template
+	return nil
+}
+
+func (p *Printer) PrintImage(img image.Image) error {
+	conn, err := grpc.NewClient(":9000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("error creating gRPC client: %w", err)
+	}
+	defer conn.Close()
+
+	pr := printer.NewPrinterClient(conn)
+
+	img_buf := new(bytes.Buffer)
+	err = png.Encode(img_buf, img)
+	job := printer.PrintJob{
+		Img: img_buf.Bytes(),
+	}
+	_, err = pr.Print(context.Background(), &job)
+
+	if err != nil {
+		return fmt.Errorf("error printing image: %w", err)
+	}
+	return nil
+}
+
+func (p *Printer) PrintLinkCall(header image.Image, url string) error {
+	conn, err := grpc.NewClient(":9000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("error creating gRPC client: %w", err)
+	}
+	defer conn.Close()
+
+	pr := printer.NewPrinterClient(conn)
+
+	img_buf := new(bytes.Buffer)
+	err = png.Encode(img_buf, header)
+	job := printer.PrintLinkJob{
+		Header: img_buf.Bytes(),
+		Url: url,
+	}
+	_, err = pr.PrintLink(context.Background(), &job)
+
+	if err != nil {
+		return fmt.Errorf("error printing image: %w", err)
+	}
 	return nil
 }

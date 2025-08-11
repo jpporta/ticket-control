@@ -1,4 +1,4 @@
-package printer
+package printerInternal
 
 import (
 	"fmt"
@@ -61,19 +61,8 @@ func (p *Printer) PrintLink(
 		}).SubImage(cropRect)
 	}
 
-	// Reset the printer state
-	p.Reset()
-	_, err = p.e.PrintImage(img)
-	if err != nil {
-		return fmt.Errorf("error printing image: %w", err)
-	}
+	err = p.PrintLinkCall(img, link.URL)
 
-	p.e.WriteRaw([]byte{0x1b, 0x61, 0x01})
-	_, err = p.e.QRCode(link.URL, true, 10, 10)
-	if err != nil {
-		return fmt.Errorf("error printing qr: %w", err)
-	}
-	err = p.e.PrintAndCut()
 	if err != nil {
 		return fmt.Errorf("error printing: %w", err)
 	}
