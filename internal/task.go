@@ -3,53 +3,37 @@ package internal
 import (
 	"context"
 	"fmt"
-	"time"
+	"os"
 
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jpporta/ticket-control/internal/printer"
-	"github.com/jpporta/ticket-control/internal/repository"
+	"github.com/jpporta/ticket-control/task"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-var TASK_LIMIT int64 = 50
-
-func (a *Application) UserHasReachedTaskLimit(ctx context.Context, userId int32) (bool, error) {
-	startYear, startMonth, startDay := time.Now().Date()
-	startTime := time.Date(startYear, startMonth, startDay, 0, 0, 0, 0, time.UTC)
-
-	total, err := a.Q.GetNoUsersTask(ctx, repository.GetNoUsersTaskParams{
-		CreatedBy:   userId,
-		CreatedAt:   pgtype.Timestamp{Time: startTime, Valid: true},
-		CreatedAt_2: pgtype.Timestamp{Time: startTime.Add(time.Hour * 24), Valid: true},
-	})
-	if err != nil {
-		return false, err
+func CreateTask(ctx context.Context, title, description, userName string, userId, priority int32) (int32, error) {
+	task_port := os.Getenv("TASK_PORT")
+	if task_port == "" {
+		return 0, fmt.Errorf("TASK_PORT environment variable not set")
 	}
+	conn, err := grpc.NewClient(":"+task_port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return 0, fmt.Errorf("error creating gRPC client: %w", err)
+	}
+	defer conn.Close()
 
-	return (total >= TASK_LIMIT), nil
-}
+	tk := task.NewTaskServiceClient(conn)
 
-func (a *Application) CreateTask(ctx context.Context, title, description string, priority int32, userId int32) (int32, error) {
-	// Create in DB
-	res, err := a.Q.CreateTask(ctx, repository.CreateTaskParams{
+	job := task.CreateTaskRequest{
 		Title:       title,
-		Description: pgtype.Text{String: description, Valid: description != ""},
-		Priority:    pgtype.Int4{Int32: priority, Valid: priority > 0 && priority <= 5},
-		CreatedBy:   userId,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("Error creating task")
+		Description: description,
+		UserName:    userName,
+		UserId:      userId,
+		Priority:    priority,
 	}
-
-	// Print, and if it fails, delete from DB
-	p, err := printerInternal.New()
+	res, err := tk.Create(ctx, &job)
 	if err != nil {
-		err_2 := a.Q.DeleteLastTask(ctx, userId)
-		if err_2 != nil {
-			return 0, fmt.Errorf("Error deleting task after printer start failure: %w", err)
-		}
-		return 0, fmt.Errorf("Error starting printer: %w", err)
+		return 0, fmt.Errorf("error creating task: %w", err)
 	}
-	name := ctx.Value("userName").(string)
-	err = p.PrintTask(title, description, priority, name)
-	return res, nil
+	return res.TaskId, nil
 }

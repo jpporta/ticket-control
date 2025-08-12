@@ -16,6 +16,9 @@ run:
 run-printer:
 	@echo "Running the printer..."
 	go run ./cmd/printer/*
+run-task:
+	@echo "Running the task..."
+	go run ./cmd/task/*
 
 new_migration:
 	@echo "Creating new migration file..."
