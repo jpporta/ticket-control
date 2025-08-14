@@ -1,20 +1,17 @@
-@host = http://localhost:8000
+# @host = http://localhost:8000
 
-# @host https://ticket.joaoporta.com
+@host=https://ticket.joaoporta.com
 
 POST {{host}}/list HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
   "items": [
-    "Arroz",
-    "Feijão",
-    "Macarrão",
-    "Carne",
-    "Frango",
-    "Peixe",
-    "Legumes",
-    "Frutas"
+"Pão",
+"Frios",
+"Requeijão",
+"Frutas pras vitaminas",
+"Ovo"
   ],
   "title": "Compras"
 }

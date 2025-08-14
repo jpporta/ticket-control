@@ -43,6 +43,7 @@ func main() {
 	mux.HandleFunc("POST /task", protectedRoute(h.createTask))
 	mux.HandleFunc("POST /list", protectedRoute(h.createList))
 	mux.HandleFunc("POST /link", protectedRoute(h.createLink))
+	mux.HandleFunc("PUT /end-of-day", protectedRoute(h.endOfDay))
 	mux.HandleFunc("GET /health", h.healthCheck)
 
 	err = http.ListenAndServe(":8000", mux)

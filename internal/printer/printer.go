@@ -118,5 +118,16 @@ func (p *Printer) loadTemplates() error {
 		return err
 	}
 	p.templates["link_header"] = link_header_template
+
+	// End of day template
+	end_of_day_template_string, err := models.ReadFile("models/end_of_day.typ")
+	if err != nil {
+		return err
+	}
+	end_of_day_template, err := template.New("end_of_day").Parse(string(end_of_day_template_string))
+	if err != nil {
+		return err
+	}
+	p.templates["end_of_day"] = end_of_day_template
 	return nil
 }

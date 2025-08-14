@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jpporta/ticket-control/internal"
@@ -136,4 +138,30 @@ func (h *Handlers) healthCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *Handlers) endOfDay(w http.ResponseWriter, r *http.Request) {
+	userName := r.Context().Value("userName").(string)
+	userId := r.Context().Value("userId").(int32)
+	done, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	noDone, err := strconv.Atoi(string(done))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	err = h.app.EndOfDay(r.Context(), userId, userName, noDone)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error ending day: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{\"status\": \"end of day processed\"}"))
 }
