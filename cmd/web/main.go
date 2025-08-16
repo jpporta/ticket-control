@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 
@@ -26,11 +27,12 @@ func chainMiddleware(fs ...middleware) func(h http.HandlerFunc) http.HandlerFunc
 }
 
 func main() {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DB_URL"))
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close(context.Background())
+	defer conn.Close(ctx)
 	app := internal.New(conn)
 	h := Handlers{
 		app,
@@ -44,7 +46,26 @@ func main() {
 	mux.HandleFunc("POST /list", protectedRoute(h.createList))
 	mux.HandleFunc("POST /link", protectedRoute(h.createLink))
 	mux.HandleFunc("PUT /end-of-day", protectedRoute(h.endOfDay))
+	mux.HandleFunc("POST /schedule", protectedRoute(h.createSchedule))
+	mux.HandleFunc("GET /schedule", protectedRoute(h.getUserSchedule))
+	mux.HandleFunc("PUT /schedule", protectedRoute(h.toggleSchedule))
 	mux.HandleFunc("GET /health", h.healthCheck)
+
+	err = app.Cron.Start(ctx, app)
+	if err != nil {
+		panic(err)
+	}
+
+	signal := make(chan os.Signal, 1)
+	go func() {
+		sig := <-signal
+		log.Println("Received signal:", sig)
+		err := app.Cron.Stop()
+		if err != nil {
+			log.Println("Error stopping cron job:", err)
+		}
+		os.Exit(1)
+	}()
 
 	err = http.ListenAndServe(":8000", mux)
 	if err != nil {

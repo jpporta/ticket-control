@@ -51,7 +51,7 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
 	defer close()
-	name := ctx.Value("userName").(string)
-	err = p.PrintTask(title, description, priority, name)
+	user, err := a.Q.GetUserById(ctx, userId)
+	err = p.PrintTask(title, description, priority, user.Name)
 	return res, nil
 }

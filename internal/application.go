@@ -7,11 +7,14 @@ import (
 
 type Application struct {
 	Q     *repository.Queries
+	Cron  *CronJob
 	Close func() error
 }
 
 func New(conn *pgx.Conn) *Application {
+	cronJob := NewCronJob()
 	return &Application{
-		Q: repository.New(conn),
+		Q:    repository.New(conn),
+		Cron: cronJob,
 	}
 }

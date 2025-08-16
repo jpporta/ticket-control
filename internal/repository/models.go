@@ -41,6 +41,18 @@ type List struct {
 	UpdatedAt pgtype.Timestamp
 }
 
+type Schedule struct {
+	ID             int32
+	Name           string
+	Title          string
+	Description    pgtype.Text
+	CronExpression string
+	Enabled        bool
+	CreatedBy      int32
+	CreatedAt      pgtype.Timestamp
+	UpdatedAt      pgtype.Timestamp
+}
+
 type Task struct {
 	ID          int32
 	Title       string

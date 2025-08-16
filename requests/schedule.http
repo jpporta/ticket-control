@@ -1,0 +1,19 @@
+@host = localhost:8000
+# @host = https://ticket.joaoporta.com
+
+POST {{host}}/schedule HTTP/1.1
+X-Api-Key: {{API_KEY}}
+
+{
+	"name": "Invoice Reminder",
+	"title": "Send Invoice",
+	"description":"Send the invoice to Avodah Accounting",
+	"cron_expression": "0 17 28 2 1-5"
+}
+###
+GET {{host}}/schedule HTTP/1.1
+X-Api-Key: {{API_KEY}}
+
+###
+PUT {{host}}/schedule?id=1 HTTP/1.1
+X-Api-Key: {{API_KEY}}

@@ -7,3 +7,6 @@ RETURNING id;
 
 -- name: GetUserByKey :one
 select id, name from public."user" where api_key = $1;
+
+-- name: GetUserById :one
+select id, name from public."user" where id = $1;

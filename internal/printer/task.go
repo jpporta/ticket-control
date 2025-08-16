@@ -32,10 +32,17 @@ func (p *Printer) PrintTask(
 	if err != nil {
 		return fmt.Errorf("error creating temp file: %w", err)
 	}
+	var priorityDisplay string
+	if priority < 1 || priority > 5 {
+		priorityDisplay = ""
+	} else {
+		priorityDisplay = strings.TrimSpace(strings.Repeat(" ", int(priority)))
+	}
+
 	template.Execute(file, taskInput{
 		Title:           title,
 		Description:     description,
-		PriorityDisplay: strings.TrimSpace(strings.Repeat(" ", int(priority))),
+		PriorityDisplay: priorityDisplay,
 		CreatedBy:       createdBy,
 		CreatedAt:       time.Now(),
 	})

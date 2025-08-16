@@ -29,6 +29,22 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, 
 	return id, err
 }
 
+const getUserById = `-- name: GetUserById :one
+select id, name from public."user" where id = $1
+`
+
+type GetUserByIdRow struct {
+	ID   int32
+	Name string
+}
+
+func (q *Queries) GetUserById(ctx context.Context, id int32) (GetUserByIdRow, error) {
+	row := q.db.QueryRow(ctx, getUserById, id)
+	var i GetUserByIdRow
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const getUserByKey = `-- name: GetUserByKey :one
 select id, name from public."user" where api_key = $1
 `
