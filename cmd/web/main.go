@@ -60,7 +60,7 @@ func main() {
 	go func() {
 		sig := <-signal
 		log.Println("Received signal:", sig)
-		err := app.Cron.Stop()
+		app.Cron.Stop()
 		if err != nil {
 			log.Println("Error stopping cron job:", err)
 		}
