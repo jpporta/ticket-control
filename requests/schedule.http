@@ -5,15 +5,16 @@ POST {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-	"name": "Pay Fanced Community Tax",
-	"title": "Pagar Condominio",
-	"description":"",
-	"cron_expression": "0 10 8 * 5"
+	"name": "test",
+	"title": "Test",
+	"description":"testing",
+	"cron_expression": "50 13 20-22 * *",
+	"check_function": "is_last_weekday_of_21"
 }
 ###
 GET {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 ###
-PUT {{host}}/schedule?id=1 HTTP/1.1
+PUT {{host}}/schedule?id=11 HTTP/1.1
 X-Api-Key: {{API_KEY}}

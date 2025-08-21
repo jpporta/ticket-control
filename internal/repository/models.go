@@ -51,6 +51,7 @@ type Schedule struct {
 	CreatedBy      int32
 	CreatedAt      pgtype.Timestamp
 	UpdatedAt      pgtype.Timestamp
+	CheckFunction  pgtype.Text
 }
 
 type Task struct {

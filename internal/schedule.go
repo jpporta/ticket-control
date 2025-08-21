@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,6 +14,7 @@ type Schedule struct {
 	Description     string `json:"description"`
 	Cron_expression string `json:"cron_expression"`
 	UserId          int32
+	CheckFunction   string `json:"check_function"`
 }
 
 func (a *Application) CreateSchedule(ctx context.Context, schedule *Schedule) error {
@@ -24,6 +24,7 @@ func (a *Application) CreateSchedule(ctx context.Context, schedule *Schedule) er
 		Description:    pgtype.Text{String: schedule.Description, Valid: schedule.Description != ""},
 		CronExpression: schedule.Cron_expression,
 		CreatedBy:      schedule.UserId,
+		CheckFunction:  pgtype.Text{String: schedule.CheckFunction, Valid: schedule.CheckFunction != ""},
 	})
 	if err != nil {
 		return err
@@ -34,6 +35,7 @@ func (a *Application) CreateSchedule(ctx context.Context, schedule *Schedule) er
 		Description:    schedule.Description,
 		CronExpression: schedule.Cron_expression,
 		CreatedBy:      schedule.UserId,
+		CheckFunction:  schedule.CheckFunction,
 	})
 	if err != nil {
 		return err
@@ -48,6 +50,7 @@ type response struct {
 	Enabled        bool      `json:"enabled"`
 	CreatedAt      time.Time `json:"created_at"`
 	CronExpression string    `json:"cron_expression"`
+	CheckFunction  string    `json:"check_function"`
 	NextRun        time.Time `json:"next_run"`
 	LastRun        time.Time `json:"last_run"`
 }
@@ -69,13 +72,7 @@ func (a *Application) GetSchedules(ctx context.Context, userId int32) ([]respons
 		for _, e := range a.Cron.s.Entries() {
 			if e.ID == job {
 				nextRun = e.Next
-				if err != nil {
-					log.Printf("Error getting next run for job %d: %v", s.ID, err)
-				}
 				lastRun = e.Prev
-				if err != nil {
-					log.Printf("Error getting last run for job %d: %v", s.ID, err)
-				}
 				break
 			}
 		}
@@ -86,6 +83,7 @@ func (a *Application) GetSchedules(ctx context.Context, userId int32) ([]respons
 			Enabled:        s.Enabled,
 			CreatedAt:      s.CreatedAt.Time,
 			CronExpression: s.CronExpression,
+			CheckFunction:  s.CheckFunction.String,
 			NextRun:        nextRun,
 			LastRun:        lastRun,
 		})
@@ -109,6 +107,7 @@ func (a *Application) ToggleSchedule(ctx context.Context, id, userId int32) erro
 			Description:    job.Description.String,
 			CronExpression: job.CronExpression,
 			CreatedBy:      userId,
+			CheckFunction:  job.CheckFunction.String,
 		})
 		if err != nil {
 			return err

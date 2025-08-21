@@ -18,6 +18,12 @@ func NewCronJob() *CronJob {
 	return &CronJob{}
 }
 
+var PossibleCheckFunctions = []string{
+	"is_last_workday_of_month",
+	"is_last_weekday_of_middle",
+	"is_last_weekday_of_10",
+}
+
 type Job struct {
 	ID             int32
 	Name           string
@@ -25,6 +31,22 @@ type Job struct {
 	Description    string
 	CronExpression string
 	CreatedBy      int32
+	CheckFunction  string
+}
+
+var funcMap = map[string]func(func()){
+	"is_last_workday_of_month":  utils.IsLastWeekdayMonth,
+	"is_last_weekday_of_middle": utils.IsLastWorkdayToMiddle,
+	"is_last_weekday_of_10":     utils.IsLastWorkdayTo10,
+}
+
+func wrapCheckFunction(fn string, jobFunc func()) {
+	f, exists := funcMap[fn]
+	if !exists {
+		jobFunc()
+		return
+	}
+	f(jobFunc)
 }
 
 func (c *CronJob) Start(ctx context.Context, a *Application) error {
@@ -38,13 +60,18 @@ func (c *CronJob) Start(ctx context.Context, a *Application) error {
 
 	for _, job := range jobs {
 		j, err := c.s.AddFunc(job.CronExpression, func() {
-			a.CreateTask(
-				ctx,
-				job.Title,
-				job.Description.String,
-				int32(0),
-				job.CreatedBy,
-			)
+			wrapCheckFunction(job.CheckFunction.String, func() {
+				_, err := a.CreateTask(
+					ctx,
+					job.Title,
+					job.Description.String,
+					int32(0),
+					job.CreatedBy,
+				)
+				if err != nil {
+					log.Println("Failed to create task for job:", job.ID, job.Name, err)
+				}
+			})
 		})
 		if err != nil {
 			log.Println("Failed to create job:", job.ID, job.Name, err)
@@ -61,16 +88,21 @@ func (c *CronJob) AddJob(ctx context.Context, a *Application, job Job) error {
 		panic("CronJob scheduler not started")
 	}
 	j, err := c.s.AddFunc(job.CronExpression, func() {
-		a.CreateTask(
-			ctx,
-			job.Title,
-			job.Description,
-			int32(0),
-			job.CreatedBy,
-		)
+		wrapCheckFunction(job.CheckFunction, func() {
+			_, err := a.CreateTask(
+				ctx,
+				job.Title,
+				job.Description,
+				int32(0),
+				job.CreatedBy,
+			)
+			if err != nil {
+				log.Println("Failed to create task for job:", job.ID, job.Name, err)
+			}
+		})
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to create job:", job.ID, job.Name, err)
+		return fmt.Errorf("Failed to create job: %d %s %w", job.ID, job.Name, err)
 	}
 	log.Println("Created job:", job.ID, job.Name, "with cron expression:", job.CronExpression)
 	c.jobs[job.ID] = j

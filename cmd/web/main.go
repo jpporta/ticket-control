@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jpporta/ticket-control/internal"
 )
 
@@ -28,11 +28,11 @@ func chainMiddleware(fs ...middleware) func(h http.HandlerFunc) http.HandlerFunc
 
 func main() {
 	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	conn, err := pgxpool.New(ctx, os.Getenv("DB_URL"))
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close(ctx)
+	defer conn.Close()
 	app := internal.New(conn)
 	h := Handlers{
 		app,

@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jpporta/ticket-control/internal/repository"
 )
 
@@ -11,7 +11,7 @@ type Application struct {
 	Close func() error
 }
 
-func New(conn *pgx.Conn) *Application {
+func New(conn *pgxpool.Pool) *Application {
 	cronJob := NewCronJob()
 	return &Application{
 		Q:    repository.New(conn),

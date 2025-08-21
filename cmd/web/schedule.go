@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,14 +23,25 @@ func (h *Handlers) createSchedule(w http.ResponseWriter, r *http.Request) {
 
 	schedule.UserId = userId
 
-	 err = h.app.CreateSchedule(r.Context(), &schedule)
+	// Validate CheckFunction
+	validCheckFunction := true
+	if schedule.CheckFunction != "" {
+		validCheckFunction = slices.Contains(internal.PossibleCheckFunctions, schedule.CheckFunction)
+	}
+
+	if !validCheckFunction {
+		http.Error(w, "Invalid check function", http.StatusBadRequest)
+		return
+	}
+
+	err = h.app.CreateSchedule(r.Context(), &schedule)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating schedule: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "OK" )
+	fmt.Fprintf(w, "OK")
 }
 
 func (h *Handlers) getUserSchedule(w http.ResponseWriter, r *http.Request) {
@@ -72,4 +84,3 @@ func (h *Handlers) toggleSchedule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "OK")
 }
-

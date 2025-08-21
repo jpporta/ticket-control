@@ -37,7 +37,7 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		CreatedBy:   userId,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("Error creating task")
+		return 0, fmt.Errorf("Error creating task: %w", err)
 	}
 
 	// Print, and if it fails, delete from DB

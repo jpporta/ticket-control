@@ -1,4 +1,5 @@
-@host = https://ticket.joaoporta.com
+#@host = https://ticket.joaoporta.com
+@host = localhost:8000
 
 POST {{host}}/task HTTP/1.1
 X-Api-Key: {{API_KEY}}
