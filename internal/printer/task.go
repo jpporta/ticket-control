@@ -22,10 +22,11 @@ func (p *Printer) PrintTask(
 	title, description string,
 	priority int32,
 	createdBy string,
+	createdAt time.Time,
 ) error {
 	if !p.Enabled {
 		p.queue = append(p.queue, func() error {
-			return p.PrintTask(title, description, priority, createdBy)
+			return p.PrintTask(title, description, priority, createdBy, createdAt)
 		})
 		return fmt.Errorf("Printer is disabled, queuing task: %s\n", title)
 	}
@@ -56,7 +57,7 @@ func (p *Printer) PrintTask(
 		Description:     description,
 		PriorityDisplay: priorityDisplay,
 		CreatedBy:       createdBy,
-		CreatedAt:       time.Now(),
+		CreatedAt:       createdAt,
 	})
 	cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
 	err = cmd.Run()

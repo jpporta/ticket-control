@@ -40,7 +40,7 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 	}
 
 	user, err := a.Q.GetUserById(ctx, userId)
-	err = a.Printer.PrintTask(title, description, priority, user.Name)
+	err = a.Printer.PrintTask(title, description, priority, user.Name, time.Now())
 	if err != nil {
 		err_2 := a.Q.DeleteLastTask(ctx, userId)
 		if err_2 != nil {
