@@ -49,6 +49,30 @@ func wrapCheckFunction(fn string, jobFunc func()) {
 	f(jobFunc)
 }
 
+func (c *CronJob) createInternalJobs(a *Application) error {
+	if c.s == nil {
+		return fmt.Errorf("CronJob scheduler not started")
+	}
+	// Printer Scheduler
+	j, err := c.s.AddFunc("0 22 * * *", func() {
+		a.Printer.TooglePrinter(false)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to create printer job: %w", err)
+	}
+	log.Println("Created job:", j, "Turn off printer at night", "with cron expression: 0 22 * * *")
+	c.jobs[-1] = j
+	j, err = c.s.AddFunc("0 8 * * *", func() {
+		a.Printer.TooglePrinter(true)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to create printer job: %w", err)
+	}
+	log.Println("Created job:", j, "Turn on printer in the morning", "with cron expression: 0 8 * * *")
+	c.jobs[-2] = j
+	return nil
+}
+
 func (c *CronJob) Start(ctx context.Context, a *Application) error {
 	if c.s != nil {
 		return nil // Already started
@@ -79,6 +103,10 @@ func (c *CronJob) Start(ctx context.Context, a *Application) error {
 		}
 		log.Println("Created job:", job.ID, job.Name, "with cron expression:", job.CronExpression)
 		c.jobs[job.ID] = j
+	}
+	err := c.createInternalJobs(a)
+	if err != nil {
+		return fmt.Errorf("Failed to create internal jobs: %w", err)
 	}
 	c.s.Start()
 	return nil
