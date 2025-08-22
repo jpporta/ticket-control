@@ -1,0 +1,5 @@
+#@host = https://ticket.joaoporta.com
+@host = localhost:8000
+
+PUT {{host}}/toggle-printer HTTP/1.1
+X-Api-Key: {{API_KEY}}

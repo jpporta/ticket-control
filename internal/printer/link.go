@@ -18,6 +18,17 @@ type LinkInput struct {
 func (p *Printer) PrintLink(
 	link LinkInput,
 ) error {
+	if !p.Enabled {
+		p.queue = append(p.queue, func() error {
+			return p.PrintLink(link)
+		})
+		return fmt.Errorf("Printer is disabled, queuing link: %s\n", link.Title)
+	}
+	close, err := p.start()
+	if err != nil {
+		return err
+	}
+	defer close()
 	// Load Template
 	template, ok := p.templates["link_header"]
 	if !ok {

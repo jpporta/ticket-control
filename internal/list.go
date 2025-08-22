@@ -43,9 +43,12 @@ func (a *Application) CreateList(ctx context.Context, userId int32, title string
 		return 0, fmt.Errorf("Error creating list")
 	}
 
-	// Print, and if it fails, delete from DB
-	p := printer.New(ctx)
-	close, err := p.Start()
+	name := ctx.Value("userName").(string)
+	err = a.Printer.PrintList(printer.ListInput{
+		Title: title,
+		Content: items,
+		CreatedBy: name,
+	})
 	if err != nil {
 		err_2 := a.Q.DeleteLastList(ctx, userId)
 		if err_2 != nil {
@@ -53,12 +56,5 @@ func (a *Application) CreateList(ctx context.Context, userId int32, title string
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
-	defer close()
-	name := ctx.Value("userName").(string)
-	err = p.PrintList(printer.ListInput{
-		Title: title,
-		Content: items,
-		CreatedBy: name,
-	})
 	return res, nil
 }

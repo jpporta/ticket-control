@@ -31,8 +31,8 @@ func (a *Application) UserHasReachedLinkLimit(ctx context.Context, userId int32)
 func (a *Application) CreateLink(ctx context.Context, userId int32, title string, url string) (int32, error) {
 	// Create in DB
 	res, err := a.Q.CreateLink(ctx, repository.CreateLinkParams{
-		Title: title,
-		Url:   url,
+		Title:     title,
+		Url:       url,
 		CreatedBy: userId,
 	})
 	if err != nil {
@@ -40,8 +40,11 @@ func (a *Application) CreateLink(ctx context.Context, userId int32, title string
 	}
 
 	// Print, and if it fails, delete from DB
-	p := printer.New(ctx)
-	close, err := p.Start()
+	name := ctx.Value("userName").(string)
+	err = a.Printer.PrintLink(printer.LinkInput{
+		Title:     title,
+		URL:       url,
+		CreatedBy: name})
 	if err != nil {
 		err_2 := a.Q.DeleteLastLink(ctx, userId)
 		if err_2 != nil {
@@ -49,12 +52,6 @@ func (a *Application) CreateLink(ctx context.Context, userId int32, title string
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
-	defer close()
-	name := ctx.Value("userName").(string)
-	err = p.PrintLink(printer.LinkInput{
-		Title: title,
-		URL: url,
-		CreatedBy: name,})
 
 	return res, nil
 }

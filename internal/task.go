@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jpporta/ticket-control/internal/printer"
 	"github.com/jpporta/ticket-control/internal/repository"
 )
 
@@ -40,9 +39,8 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		return 0, fmt.Errorf("Error creating task: %w", err)
 	}
 
-	// Print, and if it fails, delete from DB
-	p := printer.New(ctx)
-	close, err := p.Start()
+	user, err := a.Q.GetUserById(ctx, userId)
+	err = a.Printer.PrintTask(title, description, priority, user.Name)
 	if err != nil {
 		err_2 := a.Q.DeleteLastTask(ctx, userId)
 		if err_2 != nil {
@@ -50,8 +48,5 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
-	defer close()
-	user, err := a.Q.GetUserById(ctx, userId)
-	err = p.PrintTask(title, description, priority, user.Name)
 	return res, nil
 }

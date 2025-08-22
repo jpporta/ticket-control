@@ -166,3 +166,13 @@ func (h *Handlers) endOfDay(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{\"status\": \"end of day processed\"}"))
 }
 
+func (h *Handlers) togglePrinter(w http.ResponseWriter, _ *http.Request) {
+	h.app.Printer.TooglePrinter(!h.app.Printer.Enabled)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]bool{"enabled": h.app.Printer.Enabled}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}

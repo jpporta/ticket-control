@@ -11,12 +11,6 @@ import (
 )
 
 func (a *Application) EndOfDay(ctx context.Context, userId int32, userName string, noDone int) error {
-	p := printer.New(ctx)
-	close, err := p.Start()
-	if err != nil {
-		return fmt.Errorf("Error starting printer: %w", err)
-	}
-	defer close()
 	taskCreatedToday, err := a.Q.GetNoUsersTask(ctx, repository.GetNoUsersTaskParams{
 		CreatedBy:   userId,
 		CreatedAt:   pgtype.Timestamp{Time: time.Now().Truncate(24 * time.Hour), Valid: true},
@@ -25,7 +19,7 @@ func (a *Application) EndOfDay(ctx context.Context, userId int32, userName strin
 	if err != nil {
 		return fmt.Errorf("Error getting tasks created today: %w", err)
 	}
-	return p.PrintEndOfDay(printer.EndOfDayInput{
+	return a.Printer.PrintEndOfDay(printer.EndOfDayInput{
 		CreatedBy: userName,
 		Day:       time.Now(),
 		NoTasks:   int(taskCreatedToday),

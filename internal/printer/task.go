@@ -23,6 +23,18 @@ func (p *Printer) PrintTask(
 	priority int32,
 	createdBy string,
 ) error {
+	if !p.Enabled {
+		p.queue = append(p.queue, func() error {
+			return p.PrintTask(title, description, priority, createdBy)
+		})
+		return fmt.Errorf("Printer is disabled, queuing task: %s\n", title)
+	}
+	close, err := p.start()
+	if err != nil {
+		fmt.Println("Error starting printer:", err)
+		return err
+	}
+	defer close()
 	template, ok := p.templates["task"]
 	if !ok {
 		return fmt.Errorf("task template not found")
@@ -68,7 +80,7 @@ func (p *Printer) PrintTask(
 		}).SubImage(cropRect)
 	}
 	p.Reset()
-	err = p.PrintImage(img)
+	err = p.printImage(img)
 	if err != nil {
 		return fmt.Errorf("error printing image: %w", err)
 	}

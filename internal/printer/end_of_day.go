@@ -17,6 +17,17 @@ type EndOfDayInput struct {
 }
 
 func (p *Printer) PrintEndOfDay(input EndOfDayInput) error {
+	if !p.Enabled {
+		p.queue = append(p.queue, func() error {
+			return p.PrintEndOfDay(input)
+		})
+		return fmt.Errorf("Printer is disabled, queuing task: %s\n", input)
+	}
+	close, err := p.start()
+	if err != nil {
+		return err
+	}
+	defer close()
 	// Load Template
 	template, ok := p.templates["end_of_day"]
 	if !ok {
@@ -62,7 +73,7 @@ func (p *Printer) PrintEndOfDay(input EndOfDayInput) error {
 
 	// Reset the printer state
 	p.Reset()
-	err = p.PrintImage(img)
+	err = p.printImage(img)
 	if err != nil {
 		return fmt.Errorf("error printing image: %w", err)
 	}
