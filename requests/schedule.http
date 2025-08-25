@@ -1,15 +1,14 @@
 @host = localhost:8000
-#@host = https://ticket.joaoporta.com
+# @host = https://ticket.joaoporta.com
 
 POST {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-	"name": "test",
-	"title": "Test",
-	"description":"testing",
-	"cron_expression": "50 13 20-22 * *",
-	"check_function": "is_last_weekday_of_21"
+	"name": "ozempic",
+	"title": "Ozempic",
+	"description":"Tomar uma dose de Ozempic",
+	"cron_expression": "0 15 * * 0"
 }
 ###
 GET {{host}}/schedule HTTP/1.1

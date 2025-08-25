@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jpporta/ticket-control/internal"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func wrapper(h http.HandlerFunc, fs ...middleware) http.HandlerFunc {
@@ -68,7 +70,11 @@ func main() {
 		os.Exit(1)
 	}()
 
-	err = http.ListenAndServe(":8000", mux)
+	server := &http.Server{
+		Addr:    ":8000",
+		Handler: h2c.NewHandler(mux, &http2.Server{}),
+	}
+	err = server.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}

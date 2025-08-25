@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/robfig/cron/v3 v3.0.1
+	golang.org/x/net v0.41.0
 )
 
 require (

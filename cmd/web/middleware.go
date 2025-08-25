@@ -19,7 +19,7 @@ func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, 
 	start := time.Now()
 
 	defer func() {
-		log.Println("[", r.Method, "] - ", r.RequestURI, " - ", r.RemoteAddr, " - Took:", time.Since(start))
+		log.Println("[", r.Method, " @ ", r.Proto, "] - ", r.RequestURI, " - ", r.RemoteAddr, " - Took:", time.Since(start))
 	}()
 	if key == "" {
 		w.WriteHeader(http.StatusUnauthorized)
