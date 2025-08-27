@@ -5,11 +5,15 @@ POST {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-	"name": "ozempic",
-	"title": "Ozempic",
-	"description":"Tomar uma dose de Ozempic",
-	"cron_expression": "0 15 * * 0"
+	"name": "mandarim",
+	"title": "HelloChinese",
+	"description":"Estudar pelo menos 15 minutos",
+	"cron_expression": "35 18 * * 1-5"
 }
+###
+GET {{host}}/schedule HTTP/2
+X-Api-Key: {{API_KEY}}
+
 ###
 GET {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}

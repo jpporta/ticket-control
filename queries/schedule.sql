@@ -1,6 +1,7 @@
--- name: CreateScheduleTask :exec
+-- name: CreateScheduleTask :one
 INSERT INTO schedule (name, title, description, cron_expression, created_by, check_function)
-VALUES ($1, $2, $3, $4, $5, $6);
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id;
 
 -- name: ToggleScheduleTask :one
 UPDATE schedule

@@ -11,9 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createScheduleTask = `-- name: CreateScheduleTask :exec
+const createScheduleTask = `-- name: CreateScheduleTask :one
 INSERT INTO schedule (name, title, description, cron_expression, created_by, check_function)
 VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id
 `
 
 type CreateScheduleTaskParams struct {
@@ -25,8 +26,8 @@ type CreateScheduleTaskParams struct {
 	CheckFunction  pgtype.Text
 }
 
-func (q *Queries) CreateScheduleTask(ctx context.Context, arg CreateScheduleTaskParams) error {
-	_, err := q.db.Exec(ctx, createScheduleTask,
+func (q *Queries) CreateScheduleTask(ctx context.Context, arg CreateScheduleTaskParams) (int32, error) {
+	row := q.db.QueryRow(ctx, createScheduleTask,
 		arg.Name,
 		arg.Title,
 		arg.Description,
@@ -34,7 +35,9 @@ func (q *Queries) CreateScheduleTask(ctx context.Context, arg CreateScheduleTask
 		arg.CreatedBy,
 		arg.CheckFunction,
 	)
-	return err
+	var id int32
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getAllEnabledScheduleTasks = `-- name: GetAllEnabledScheduleTasks :many

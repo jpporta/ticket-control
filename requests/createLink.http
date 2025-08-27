@@ -2,10 +2,10 @@
 
 # @host http://localhost:8000
 
-POST {{host}}/link HTTP/1.1
+POST {{host}}/link HTTP/2
 X-Api-Key: {{API_KEY}}
 
 {
-  "title": "Compras",
-  "url": "https://www.amazon.com.br/hz/wishlist/ls/1A2B3C4D5E6F7G?ref_=wl_share"
+  "title": "4DRIAN0RTIZ/complexity.nvim",
+  "url": "https://www.youtube.com/watch?v=mdpPUoxCo44"
 }

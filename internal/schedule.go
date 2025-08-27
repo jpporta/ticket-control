@@ -18,7 +18,7 @@ type Schedule struct {
 }
 
 func (a *Application) CreateSchedule(ctx context.Context, schedule *Schedule) error {
-	err := a.Q.CreateScheduleTask(ctx, repository.CreateScheduleTaskParams{
+	id, err := a.Q.CreateScheduleTask(ctx, repository.CreateScheduleTaskParams{
 		Name:           schedule.Name,
 		Title:          schedule.Title,
 		Description:    pgtype.Text{String: schedule.Description, Valid: schedule.Description != ""},
@@ -30,6 +30,7 @@ func (a *Application) CreateSchedule(ctx context.Context, schedule *Schedule) er
 		return err
 	}
 	err = a.Cron.AddJob(ctx, a, Job{
+		ID:             id,
 		Name:           schedule.Name,
 		Title:          schedule.Title,
 		Description:    schedule.Description,
