@@ -1,5 +1,5 @@
-# @host = localhost:8000
-@host = https://ticket.joaoporta.com
+@host = localhost:8000
+# @host = https://ticket.joaoporta.com
 
 PUT {{host}}/end-of-day HTTP/1.1
 X-Api-Key: {{API_KEY}}
