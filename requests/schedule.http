@@ -1,14 +1,14 @@
-@host = localhost:8000
-# @host = https://ticket.joaoporta.com
+# @host = localhost:8000
+@host = https://ticket.joaoporta.com
 
 POST {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-	"name": "mandarim",
-	"title": "HelloChinese",
-	"description":"Estudar pelo menos 15 minutos",
-	"cron_expression": "35 18 * * 1-5"
+	"name": "Reminder Cidinha",
+	"title": "Grupo Cidinha",
+	"description":"Avisar Cidinha que tem grupo de domesticas, e pedir para conversar com alguma outra pessoa na saida",
+	"cron_expression": "0 8 4 9 *"
 }
 ###
 GET {{host}}/schedule HTTP/2

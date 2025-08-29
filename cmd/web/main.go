@@ -52,6 +52,7 @@ func main() {
 	mux.HandleFunc("GET /schedule", protectedRoute(h.getUserSchedule))
 	mux.HandleFunc("PUT /schedule", protectedRoute(h.toggleSchedule))
 	mux.HandleFunc("PUT /toggle-printer", protectedRoute(h.togglePrinter))
+	mux.HandleFunc("POST /events", protectedRoute(h.postDayEvents))
 	mux.HandleFunc("GET /health", h.healthCheck)
 
 	err = app.Cron.Start(ctx, app)

@@ -1,0 +1,9 @@
+#@host = https://ticket.joaoporta.com
+@host = localhost:8000
+
+POST {{host}}/events HTTP/2
+X-Api-Key: {{API_KEY}}
+
+{
+"body": "{\"events\":[{\"start\":\"2025-08-29T10:00:00-03:00\",\"end\":\"2025-08-29T10:30:00-03:00\",\"title\":\"Leads PR Review Together s2\"},{\"start\":\"2025-08-29T12:00:00-03:00\",\"end\":\"2025-08-29T20:00:00-03:00\",\"title\":\"Focus Friday\"},{\"start\":\"2025-08-29T12:00:00-03:00\",\"end\":\"2025-08-29T12:30:00-03:00\",\"title\":\"AvodahMed Daily\"},{\"start\":\"2025-08-29T12:30:00-03:00\",\"end\":\"2025-08-29T13:30:00-03:00\",\"title\":\"Engineering | Hiring Manager Phone Screen | 2025 - Andrey Moraes - Software Engineer - Med\"},{\"start\":\"2025-08-29T12:30:00-03:00\",\"end\":\"2025-08-29T13:20:00-03:00\",\"title\":\"Technical Interview - Andrey Moraes\"},{\"start\":\"2025-08-29T13:30:00-03:00\",\"end\":\"2025-08-29T14:30:00-03:00\",\"title\":\"Lunch Break\"},{\"start\":\"2025-08-29T13:30:00-03:00\",\"end\":\"2025-08-29T14:30:00-03:00\",\"title\":\"Prompt Changes\"},{\"start\":\"2025-08-29T15:30:00-03:00\",\"end\":\"2025-08-29T16:30:00-03:00\",\"title\":\"[ Dentista ]\"},{\"start\":\"2025-08-29T16:45:00-03:00\",\"end\":\"2025-08-29T17:45:00-03:00\",\"title\":\"[ Natação ]\"}]}"
+}

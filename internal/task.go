@@ -3,9 +3,11 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jpporta/ticket-control/internal/printer"
 	"github.com/jpporta/ticket-control/internal/repository"
 )
 
@@ -49,4 +51,39 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
 	return res, nil
+}
+
+type CreateTaskParams struct {
+	Title, Description string
+	Priority           int32
+}
+
+func (a *Application) CreateTasks(ctx context.Context, tasks []CreateTaskParams, userId int32) (int, error) {
+	// Create in DB
+	printerTasks := []printer.TaskInput{}
+	user, err := a.Q.GetUserById(ctx, userId)
+	for _, task := range tasks {
+		_, err := a.Q.CreateTask(ctx, repository.CreateTaskParams{
+			Title:       task.Title,
+			Description: pgtype.Text{String: task.Description, Valid: task.Description != ""},
+			Priority:    pgtype.Int4{Int32: task.Priority, Valid: task.Priority > 0 && task.Priority <= 5},
+			CreatedBy:   userId,
+		})
+		if err != nil {
+			log.Println("Error creating task:", err, "Task:", task)
+			continue
+		}
+		printerTasks = append(printerTasks, printer.TaskInput{
+			Title:       task.Title,
+			Description: task.Description,
+			Priority:    task.Priority,
+			CreatedBy:   user.Name,
+			CreatedAt:   time.Now()})
+	}
+
+	err = a.Printer.PrintTasks(printerTasks)
+	if err != nil {
+			return 0, fmt.Errorf("Error creating tasks: %w", err)
+	}
+	return len(printerTasks), nil
 }
