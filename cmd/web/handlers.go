@@ -20,6 +20,28 @@ type CreateLink struct {
 	Url   string `json:"url"`
 }
 
+func (h *Handlers) getLink(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("userId").(int32)
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid link ID", http.StatusBadRequest)
+		return
+	}
+	link, err := h.app.GetLink(r.Context(), int32(id), userId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error retrieving link: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if link == "" {
+		http.Error(w, "Link not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, link)
+}
+
 func (h *Handlers) createLink(w http.ResponseWriter, r *http.Request) {
 	userId := r.Context().Value("userId").(int32)
 

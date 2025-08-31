@@ -45,6 +45,17 @@ func (q *Queries) DeleteLastLink(ctx context.Context, createdBy int32) error {
 	return err
 }
 
+const getLinkByID = `-- name: GetLinkByID :one
+SELECT url FROM link WHERE id = $1
+`
+
+func (q *Queries) GetLinkByID(ctx context.Context, id int32) (string, error) {
+	row := q.db.QueryRow(ctx, getLinkByID, id)
+	var url string
+	err := row.Scan(&url)
+	return url, err
+}
+
 const totalLinksFromUser = `-- name: TotalLinksFromUser :one
 SELECT count(*) AS total FROM link
 WHERE created_by = $1

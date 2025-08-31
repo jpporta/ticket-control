@@ -47,6 +47,7 @@ func main() {
 	mux.HandleFunc("POST /task", protectedRoute(h.createTask))
 	mux.HandleFunc("POST /list", protectedRoute(h.createList))
 	mux.HandleFunc("POST /link", protectedRoute(h.createLink))
+	mux.HandleFunc("GET /link/{id}", protectedRoute(h.getLink))
 	mux.HandleFunc("PUT /end-of-day", protectedRoute(h.endOfDay))
 	mux.HandleFunc("POST /schedule", protectedRoute(h.createSchedule))
 	mux.HandleFunc("GET /schedule", protectedRoute(h.getUserSchedule))

@@ -42,6 +42,7 @@ func (a *Application) CreateLink(ctx context.Context, userId int32, title string
 	// Print, and if it fails, delete from DB
 	name := ctx.Value("userName").(string)
 	err = a.Printer.PrintLink(printer.LinkInput{
+		ID:        res,
 		Title:     title,
 		URL:       url,
 		CreatedBy: name})
@@ -54,4 +55,12 @@ func (a *Application) CreateLink(ctx context.Context, userId int32, title string
 	}
 
 	return res, nil
+}
+
+func (a *Application) GetLink(ctx context.Context, linkId int32, userId int32) (string, error) {
+	link, err := a.Q.GetLinkByID(ctx, linkId)
+	if err != nil {
+		return "", fmt.Errorf("Error retrieving link: %w", err)
+	}
+	return link, nil
 }

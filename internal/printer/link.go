@@ -10,6 +10,7 @@ import (
 )
 
 type LinkInput struct {
+	ID        int32
 	Title     string
 	URL       string
 	CreatedBy string

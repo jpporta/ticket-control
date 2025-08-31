@@ -17,3 +17,6 @@ WHERE id = (
 	ORDER BY created_at DESC
 	LIMIT 1
 );
+
+-- name: GetLinkByID :one
+SELECT url FROM link WHERE id = $1;

@@ -1,6 +1,6 @@
-@host = https://ticket.joaoporta.com
+# @host = https://ticket.joaoporta.com
 
-# @host http://localhost:8000
+@host=http://localhost:8000
 
 POST {{host}}/link HTTP/2
 X-Api-Key: {{API_KEY}}
@@ -9,3 +9,7 @@ X-Api-Key: {{API_KEY}}
   "title": "4DRIAN0RTIZ/complexity.nvim",
   "url": "https://www.youtube.com/watch?v=mdpPUoxCo44"
 }
+
+###
+GET {{host}}/link/9 HTTP/2
+X-Api-Key: {{API_KEY}}
