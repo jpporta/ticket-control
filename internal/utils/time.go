@@ -1,50 +1,58 @@
 package utils
 
-import "time"
+import (
+	"time"
+)
 
 func isWeekend(t time.Time) bool {
 	return t.Weekday() == time.Saturday || t.Weekday() == time.Sunday
 }
 
-func IsLastWeekdayMonth(fn func()) {
-	t := time.Now()
+func IsDayLastWorkDayMonth(t time.Time) bool {
 	m := t.Month()
 	if isWeekend(t) {
-		return
+		return false
 	}
+	t = t.AddDate(0, 0, 1)
 	for t.Month() == m {
-		t = t.AddDate(0, 0, 1)
 		if !isWeekend(t) {
-			return
+			return false
 		}
+		t = t.AddDate(0, 0, 1)
 	}
-	fn()
+	return true
+}
+
+func IsLastWeekdayMonth(fn func()) {
+	if IsDayLastWorkDayMonth(time.Now()) {
+		fn()
+	}
 }
 
 func IsLastWorkdayToMiddle(fn func()) {
-	if isLastWorkdayUpTo(15) {
+	if isLastWorkdayUpTo(time.Now(), 15) {
 		fn()
 	}
 }
 func IsLastWorkdayTo10(fn func()) {
-	if isLastWorkdayUpTo(10) {
+	if isLastWorkdayUpTo(time.Now(), 10) {
 		fn()
 	}
 }
 
-func isLastWorkdayUpTo(day int) bool {
-	t := time.Now()
+func isLastWorkdayUpTo(t time.Time, day int) bool {
 	if isWeekend(t) {
 		return false
 	}
-	if t.Day() >= day {
+	if t.Day() == day {
 		return true
 	}
-	for i := t.Day(); i < day; i++ {
-		t = t.AddDate(0, 0, 1)
+	t = t.AddDate(0, 0, 1)
+	for t.Day() <= day {
 		if !isWeekend(t) {
 			return false
 		}
+		t = t.AddDate(0, 0, 1)
 	}
 	return true
 }
