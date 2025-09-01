@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -65,6 +66,7 @@ type GetNoUsersTaskParams struct {
 }
 
 func (q *Queries) GetNoUsersTask(ctx context.Context, arg GetNoUsersTaskParams) (int64, error) {
+	fmt.Println("GetNoUsersTask", arg)
 	row := q.db.QueryRow(ctx, getNoUsersTask, arg.CreatedBy, arg.CreatedAt, arg.CreatedAt_2)
 	var total int64
 	err := row.Scan(&total)
