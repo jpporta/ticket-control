@@ -11,16 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const completeTasks = `-- name: CompleteTasks :exec
+const completeTasks = `-- name: CompleteTasks :one
 UPDATE task
 SET completed_at = NOW()
-WHERE id = ANY($1)
+WHERE id = ANY($1::int[])
+AND created_by = $2
 AND completed_at IS NULL
+RETURNING count(*) AS total
 `
 
-func (q *Queries) CompleteTasks(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, completeTasks, id)
-	return err
+type CompleteTasksParams struct {
+	Column1   []int32
+	CreatedBy int32
+}
+
+func (q *Queries) CompleteTasks(ctx context.Context, arg CompleteTasksParams) (int64, error) {
+	row := q.db.QueryRow(ctx, completeTasks, arg.Column1, arg.CreatedBy)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
 }
 
 const createTask = `-- name: CreateTask :one

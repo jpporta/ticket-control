@@ -25,9 +25,11 @@ WHERE completed_at IS NULL
 AND created_by = $1
 ORDER BY priority DESC, created_at ASC;
 
--- name: CompleteTasks :exec
+-- name: CompleteTasks :one
 UPDATE task
 SET completed_at = NOW()
-WHERE id = ANY($1)
-AND completed_at IS NULL;
+WHERE id = ANY($1::int[])
+AND created_by = $2
+AND completed_at IS NULL
+RETURNING count(*) AS total;
 
