@@ -45,6 +45,7 @@ func main() {
 	protectedRoute := chainMiddleware(h.logRequestMiddleware, h.authMiddleware)
 
 	mux.HandleFunc("POST /task", protectedRoute(h.createTask))
+	mux.HandleFunc("GET /task", protectedRoute(h.getOpenTasks))
 	mux.HandleFunc("POST /list", protectedRoute(h.createList))
 	mux.HandleFunc("POST /link", protectedRoute(h.createLink))
 	mux.HandleFunc("GET /link/{id}", protectedRoute(h.getLink))

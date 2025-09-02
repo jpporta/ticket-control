@@ -7,10 +7,21 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const completeTasks = `-- name: CompleteTasks :exec
+UPDATE task
+SET completed_at = NOW()
+WHERE id = ANY($1)
+AND completed_at IS NULL
+`
+
+func (q *Queries) CompleteTasks(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, completeTasks, id)
+	return err
+}
 
 const createTask = `-- name: CreateTask :one
 INSERT INTO task (title, description, priority, created_by)
@@ -66,9 +77,48 @@ type GetNoUsersTaskParams struct {
 }
 
 func (q *Queries) GetNoUsersTask(ctx context.Context, arg GetNoUsersTaskParams) (int64, error) {
-	fmt.Println("GetNoUsersTask", arg)
 	row := q.db.QueryRow(ctx, getNoUsersTask, arg.CreatedBy, arg.CreatedAt, arg.CreatedAt_2)
 	var total int64
 	err := row.Scan(&total)
 	return total, err
+}
+
+const getOpenTasks = `-- name: GetOpenTasks :many
+SELECT id, title, priority, created_at
+FROM task
+WHERE completed_at IS NULL
+AND created_by = $1
+ORDER BY priority DESC, created_at ASC
+`
+
+type GetOpenTasksRow struct {
+	ID        int32
+	Title     string
+	Priority  pgtype.Int4
+	CreatedAt pgtype.Timestamp
+}
+
+func (q *Queries) GetOpenTasks(ctx context.Context, createdBy int32) ([]GetOpenTasksRow, error) {
+	rows, err := q.db.Query(ctx, getOpenTasks, createdBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetOpenTasksRow
+	for rows.Next() {
+		var i GetOpenTasksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Priority,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

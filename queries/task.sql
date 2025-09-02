@@ -17,3 +17,17 @@ WHERE id = (
 	ORDER BY created_at DESC
 	LIMIT 1
 );
+
+-- name: GetOpenTasks :many
+SELECT id, title, priority, created_at
+FROM task
+WHERE completed_at IS NULL
+AND created_by = $1
+ORDER BY priority DESC, created_at ASC;
+
+-- name: CompleteTasks :exec
+UPDATE task
+SET completed_at = NOW()
+WHERE id = ANY($1)
+AND completed_at IS NULL;
+

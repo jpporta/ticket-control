@@ -152,6 +152,22 @@ func (h *Handlers) createTask(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"id": %d}`, total)
 }
 
+func (h *Handlers) getOpenTasks(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("userId").(int32)
+	tasks, err := h.app.GetOpenTasks(r.Context(), userId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error retrieving tasks: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(tasks); err != nil {
+		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (h *Handlers) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

@@ -83,7 +83,31 @@ func (a *Application) CreateTasks(ctx context.Context, tasks []CreateTaskParams,
 
 	err = a.Printer.PrintTasks(printerTasks)
 	if err != nil {
-			return 0, fmt.Errorf("Error creating tasks: %w", err)
+		return 0, fmt.Errorf("Error creating tasks: %w", err)
 	}
 	return len(printerTasks), nil
+}
+
+type openTasks struct {
+	ID        int32     `json:"id"`
+	Title     string    `json:"title"`
+	Priority  int       `json:"priority"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (a *Application) GetOpenTasks(ctx context.Context, userId int32) ([]openTasks, error) {
+	tasks := []openTasks{}
+	tasks_db, err := a.Q.GetOpenTasks(ctx, userId)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting open tasks: %w", err)
+	}
+	for _, task := range tasks_db {
+		tasks = append(tasks, openTasks{
+			ID:        task.ID,
+			Title:     task.Title,
+			Priority:  int(task.Priority.Int32),
+			CreatedAt: task.CreatedAt.Time,
+		})
+	}
+	return tasks, nil
 }

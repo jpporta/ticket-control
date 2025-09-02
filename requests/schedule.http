@@ -5,10 +5,10 @@ POST {{host}}/schedule HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-	"name": "Reminder Cidinha",
-	"title": "Grupo Cidinha",
-	"description":"Avisar Cidinha que tem grupo de domesticas, e pedir para conversar com alguma outra pessoa na saida",
-	"cron_expression": "0 8 4 9 *"
+	"name": "Ouvido Cachorras",
+	"title": "Ouvido Cachorras",
+	"description":"Limpar e passar remedio no ouvido das cachorras",
+	"cron_expression": "0 17 * * 2,6"
 }
 ###
 GET {{host}}/schedule HTTP/2

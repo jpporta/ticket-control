@@ -9,3 +9,8 @@ X-Api-Key: {{API_KEY}}
   "priority": 2,
   "title": "Task Management"
 }
+
+### 
+
+GET {{host}}/task HTTP/2
+X-Api-Key: {{API_KEY}}

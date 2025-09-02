@@ -62,6 +62,7 @@ type Task struct {
 	CreatedAt   pgtype.Timestamp
 	CreatedBy   int32
 	UpdatedAt   pgtype.Timestamp
+	CompletedAt pgtype.Timestamp
 }
 
 type User struct {
