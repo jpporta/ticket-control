@@ -33,6 +33,8 @@ func (h *Handlers) logRequestMiddleware(w http.ResponseWriter, r *http.Request, 
 	h.app.Q.AddAccess(r.Context(), repository.AddAccessParams{
 		UserID:    pgtype.Int4{Int32: user.ID, Valid: user.ID != 0},
 		IpAddress: ip,
+		Path:      r.RequestURI,
+		Method:    r.Method,
 	})
 	ctx := context.WithValue(
 		context.WithValue(

@@ -13,6 +13,8 @@ type Access struct {
 	UserID     pgtype.Int4
 	IpAddress  string
 	AccessedAt pgtype.Timestamp
+	Path       string
+	Method     string
 }
 
 type Config struct {

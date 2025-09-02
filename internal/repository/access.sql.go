@@ -14,16 +14,55 @@ import (
 const addAccess = `-- name: AddAccess :exec
 INSERT INTO access (
 	user_id,
-  ip_address
-) VALUES ($1, $2)
+  ip_address,
+	path,
+  method
+) VALUES ($1, $2, $3, $4)
 `
 
 type AddAccessParams struct {
 	UserID    pgtype.Int4
 	IpAddress string
+	Path      string
+	Method    string
 }
 
 func (q *Queries) AddAccess(ctx context.Context, arg AddAccessParams) error {
-	_, err := q.db.Exec(ctx, addAccess, arg.UserID, arg.IpAddress)
+	_, err := q.db.Exec(ctx, addAccess,
+		arg.UserID,
+		arg.IpAddress,
+		arg.Path,
+		arg.Method,
+	)
 	return err
+}
+
+const getAccessStats = `-- name: GetAccessStats :one
+SELECT count(*) AS total FROM access
+WHERE user_id = $1
+AND path = $2
+AND method = $3
+AND accessed_at >= $4
+AND accessed_at < $5
+`
+
+type GetAccessStatsParams struct {
+	UserID       pgtype.Int4
+	Path         string
+	Method       string
+	AccessedAt   pgtype.Timestamp
+	AccessedAt_2 pgtype.Timestamp
+}
+
+func (q *Queries) GetAccessStats(ctx context.Context, arg GetAccessStatsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getAccessStats,
+		arg.UserID,
+		arg.Path,
+		arg.Method,
+		arg.AccessedAt,
+		arg.AccessedAt_2,
+	)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
 }
