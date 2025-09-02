@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -102,6 +103,63 @@ type TaskInput struct {
 	CreatedAt          time.Time
 }
 
+func (p Printer) printSingleTask(task TaskInput, template *template.Template) error {
+	file, err := os.CreateTemp("", "task-*.typ")
+	if err != nil {
+		return fmt.Errorf("error creating temp file: %w", err)
+	}
+	defer os.Remove(file.Name())
+	var priorityDisplay string
+	priority := task.Priority
+	if priority < -1 || priority > 5 {
+		priority = 0
+	}
+	switch priority {
+	case -1:
+		priorityDisplay = ""
+	case 0:
+		priorityDisplay = ""
+	default:
+		priorityDisplay = strings.TrimSpace(strings.Repeat(" ", int(priority)))
+	}
+
+	err = template.Execute(file, taskInput{
+		Title:           task.Title,
+		Description:     task.Description,
+		PriorityDisplay: priorityDisplay,
+		CreatedBy:       task.CreatedBy,
+		CreatedAt:       task.CreatedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("error parsing template: %w", err)
+	}
+	cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("error executing typst command: %w", err)
+	}
+
+	img_raw, err := os.Open(strings.Replace(file.Name(), ".typ", ".png", 1))
+	if err != nil {
+		return fmt.Errorf("error opening image file: %w", err)
+	}
+	defer img_raw.Close()
+	img, _, err := image.Decode(img_raw)
+	if err != nil {
+		return fmt.Errorf("error decoding image: %w", err)
+	}
+	if img.Bounds().Max.Y%8 != 0 {
+		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
+		img = img.(interface {
+			SubImage(r image.Rectangle) image.Image
+		}).SubImage(cropRect)
+	}
+	err = p.printImage(img)
+	if err != nil {
+		return fmt.Errorf("error printing image: %w", err)
+	}
+	return nil
+}
 func (p *Printer) PrintTasks(tasks []TaskInput) error {
 	if !p.Enabled {
 		p.queue = append(p.queue, func() error {
@@ -122,56 +180,9 @@ func (p *Printer) PrintTasks(tasks []TaskInput) error {
 
 	p.Reset()
 	for _, task := range tasks {
-		file, err := os.CreateTemp("", "task-*.typ")
+		err := p.printSingleTask(task, template)
 		if err != nil {
-			return fmt.Errorf("error creating temp file: %w", err)
-		}
-		var priorityDisplay string
-		priority := task.Priority
-		if priority < -1 || priority > 5 {
-			priority = 0
-		}
-		switch priority {
-		case -1:
-			priorityDisplay = ""
-		case 0:
-			priorityDisplay = ""
-		default:
-			priorityDisplay = strings.TrimSpace(strings.Repeat(" ", int(priority)))
-		}
-
-		template.Execute(file, taskInput{
-			Title:           task.Title,
-			Description:     task.Description,
-			PriorityDisplay: priorityDisplay,
-			CreatedBy:       task.CreatedBy,
-			CreatedAt:       task.CreatedAt,
-		})
-		cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
-		err = cmd.Run()
-		if err != nil {
-			return fmt.Errorf("error executing typst command: %w", err)
-		}
-
-		img_raw, err := os.Open(strings.Replace(file.Name(), ".typ", ".png", 1))
-		if err != nil {
-			return fmt.Errorf("error opening image file: %w", err)
-		}
-		defer img_raw.Close()
-		img, _, err := image.Decode(img_raw)
-		if err != nil {
-			return fmt.Errorf("error decoding image: %w", err)
-		}
-		if img.Bounds().Max.Y%8 != 0 {
-			cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
-			img = img.(interface {
-				SubImage(r image.Rectangle) image.Image
-			}).SubImage(cropRect)
-		}
-		err = p.printImage(img)
-		if err != nil {
-			log.Println("error printing image:", err, "Task:", task)
-			continue
+			log.Println("error printing task:", err, "Task:", task)
 		}
 	}
 	return nil
