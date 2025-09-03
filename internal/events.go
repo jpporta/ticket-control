@@ -53,5 +53,5 @@ func (a *Application) hasUserAlreadyPrintedToday(ctx context.Context, userId int
 	if err != nil {
 		return false, fmt.Errorf("Error checking if user has printed today: %w", err)
 	}
-	return noPrintedToday > 0, nil
+	return noPrintedToday > 1, nil
 }
