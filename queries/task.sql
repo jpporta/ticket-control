@@ -25,6 +25,13 @@ WHERE completed_at IS NULL
 AND created_by = $1
 ORDER BY priority DESC, created_at ASC;
 
+-- name: GetNoCompletedTasks :one
+SELECT count(*) AS total
+FROM task
+WHERE completed_at >= $1
+AND completed_at < $2
+AND created_by = $3;
+
 -- name: CompleteTasks :one
 UPDATE task
 SET completed_at = NOW()

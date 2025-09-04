@@ -72,6 +72,27 @@ func (q *Queries) DeleteLastTask(ctx context.Context, createdBy int32) error {
 	return err
 }
 
+const getNoCompletedTasks = `-- name: GetNoCompletedTasks :one
+SELECT count(*) AS total
+FROM task
+WHERE completed_at >= $1
+AND completed_at < $2
+AND created_by = $3
+`
+
+type GetNoCompletedTasksParams struct {
+	CompletedAt   pgtype.Timestamp
+	CompletedAt_2 pgtype.Timestamp
+	CreatedBy     int32
+}
+
+func (q *Queries) GetNoCompletedTasks(ctx context.Context, arg GetNoCompletedTasksParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getNoCompletedTasks, arg.CompletedAt, arg.CompletedAt_2, arg.CreatedBy)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const getNoUsersTask = `-- name: GetNoUsersTask :one
 SELECT count(*) AS total FROM task
 WHERE created_by = $1

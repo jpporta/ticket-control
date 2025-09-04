@@ -56,3 +56,18 @@ func (h *Handlers) endOfDayWithTasks(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 
 }
+
+func (h *Handlers) endOfDayAuto(w http.ResponseWriter, r *http.Request) {
+	userName := r.Context().Value("userName").(string)
+	userId := r.Context().Value("userId").(int32)
+
+	err := h.app.EndOfDayAuto(r.Context(), userId, userName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error ending day: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{\"status\": \"end of day processed\"}"))
+}
