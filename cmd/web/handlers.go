@@ -190,7 +190,7 @@ func (h *Handlers) togglePrinter(w http.ResponseWriter, _ *http.Request) {
 
 func (h *Handlers) doneTask(w http.ResponseWriter, r *http.Request) {
 	userId := r.Context().Value("userId").(int32)
-	taskIdStr := r.URL.Query().Get("id")
+	taskIdStr := r.PathValue("id")
 	if taskIdStr == "" {
 		http.Error(w, "Missing task ID", http.StatusBadRequest)
 		return
@@ -208,4 +208,5 @@ func (h *Handlers) doneTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }

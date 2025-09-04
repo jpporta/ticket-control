@@ -13,6 +13,7 @@ import (
 )
 
 type taskInput struct {
+	ID              int32
 	Title           string
 	Description     string
 	PriorityDisplay string
@@ -21,6 +22,7 @@ type taskInput struct {
 }
 
 func (p *Printer) PrintTask(
+	id int32,
 	title, description string,
 	priority int32,
 	createdBy string,
@@ -28,7 +30,7 @@ func (p *Printer) PrintTask(
 ) error {
 	if !p.Enabled {
 		p.queue = append(p.queue, func() error {
-			return p.PrintTask(title, description, priority, createdBy, createdAt)
+			return p.PrintTask(id, title, description, priority, createdBy, createdAt)
 		})
 		return fmt.Errorf("Printer is disabled, queuing task: %s\n", title)
 	}
@@ -61,6 +63,7 @@ func (p *Printer) PrintTask(
 	}
 
 	template.Execute(file, taskInput{
+		ID:              id,
 		Title:           title,
 		Description:     description,
 		PriorityDisplay: priorityDisplay,

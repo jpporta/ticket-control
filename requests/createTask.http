@@ -14,3 +14,7 @@ X-Api-Key: {{API_KEY}}
 
 GET {{host}}/task HTTP/2
 X-Api-Key: {{API_KEY}}
+
+###
+PATCH {{host}}/task/386 HTTP/2
+X-Api-Key: {{API_KEY}}

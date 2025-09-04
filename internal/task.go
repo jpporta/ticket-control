@@ -31,7 +31,7 @@ func (a *Application) UserHasReachedTaskLimit(ctx context.Context, userId int32)
 
 func (a *Application) CreateTask(ctx context.Context, title, description string, priority int32, userId int32) (int32, error) {
 	// Create in DB
-	res, err := a.Q.CreateTask(ctx, repository.CreateTaskParams{
+	id, err := a.Q.CreateTask(ctx, repository.CreateTaskParams{
 		Title:       title,
 		Description: pgtype.Text{String: description, Valid: description != ""},
 		Priority:    pgtype.Int4{Int32: priority, Valid: priority > 0 && priority <= 5},
@@ -42,7 +42,7 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 	}
 
 	user, err := a.Q.GetUserById(ctx, userId)
-	err = a.Printer.PrintTask(title, description, priority, user.Name, time.Now())
+	err = a.Printer.PrintTask(id, title, description, priority, user.Name, time.Now())
 	if err != nil {
 		err_2 := a.Q.DeleteLastTask(ctx, userId)
 		if err_2 != nil {
@@ -50,7 +50,7 @@ func (a *Application) CreateTask(ctx context.Context, title, description string,
 		}
 		return 0, fmt.Errorf("Error starting printer: %w", err)
 	}
-	return res, nil
+	return id, nil
 }
 
 type CreateTaskParams struct {
