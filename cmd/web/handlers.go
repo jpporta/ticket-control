@@ -187,3 +187,25 @@ func (h *Handlers) togglePrinter(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 }
+
+func (h *Handlers) doneTask(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("userId").(int32)
+	taskIdStr := r.URL.Query().Get("id")
+	if taskIdStr == "" {
+		http.Error(w, "Missing task ID", http.StatusBadRequest)
+		return
+	}
+	taskId, err := strconv.Atoi(taskIdStr)
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.app.MarkTaskAsDone(r.Context(), int32(taskId), userId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error marking task as done: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

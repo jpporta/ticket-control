@@ -33,3 +33,8 @@ AND created_by = $2
 AND completed_at IS NULL
 RETURNING count(*) AS total;
 
+-- name: MarkTaskAsDone :exec
+UPDATE task
+SET completed_at = NOW()
+WHERE id = $1
+AND created_by = $2;

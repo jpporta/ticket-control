@@ -111,3 +111,15 @@ func (a *Application) GetOpenTasks(ctx context.Context, userId int32) ([]openTas
 	}
 	return tasks, nil
 }
+
+func (a *Application) MarkTaskAsDone(ctx context.Context, taskId, userId int32) error {
+	// Mark as done in DB
+	err := a.Q.MarkTaskAsDone(ctx, repository.MarkTaskAsDoneParams{
+		ID:        taskId,
+		CreatedBy: userId,
+	})
+	if err != nil {
+		return fmt.Errorf("Error marking task as done: %w", err)
+	}
+	return nil
+}

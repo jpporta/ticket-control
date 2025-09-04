@@ -131,3 +131,20 @@ func (q *Queries) GetOpenTasks(ctx context.Context, createdBy int32) ([]GetOpenT
 	}
 	return items, nil
 }
+
+const markTaskAsDone = `-- name: MarkTaskAsDone :exec
+UPDATE task
+SET completed_at = NOW()
+WHERE id = $1
+AND created_by = $2
+`
+
+type MarkTaskAsDoneParams struct {
+	ID        int32
+	CreatedBy int32
+}
+
+func (q *Queries) MarkTaskAsDone(ctx context.Context, arg MarkTaskAsDoneParams) error {
+	_, err := q.db.Exec(ctx, markTaskAsDone, arg.ID, arg.CreatedBy)
+	return err
+}
