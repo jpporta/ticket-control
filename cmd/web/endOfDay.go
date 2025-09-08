@@ -16,6 +16,15 @@ func (h *Handlers) endOfDay(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
 		return
 	}
+	offsetStr := r.URL.Query().Get("offset")
+	offset := 0
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error reading offset: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
 
 	noDone, err := strconv.Atoi(string(done))
 	if err != nil {
@@ -23,7 +32,7 @@ func (h *Handlers) endOfDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.app.EndOfDay(r.Context(), userId, userName, noDone)
+	err = h.app.EndOfDay(r.Context(), userId, userName, noDone, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error ending day: %v", err), http.StatusInternalServerError)
 		return
@@ -47,7 +56,16 @@ func (h *Handlers) endOfDayWithTasks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
 		return
 	}
-	err = h.app.EndOfDayWithTasks(r.Context(), userId, userName, req.DoneTasks)
+	offsetStr := r.URL.Query().Get("offset")
+	offset := 0
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error reading offset: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+	err = h.app.EndOfDayWithTasks(r.Context(), userId, userName, req.DoneTasks, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error ending day: %v", err), http.StatusInternalServerError)
 		return
@@ -60,8 +78,18 @@ func (h *Handlers) endOfDayWithTasks(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) endOfDayAuto(w http.ResponseWriter, r *http.Request) {
 	userName := r.Context().Value("userName").(string)
 	userId := r.Context().Value("userId").(int32)
+	offsetStr := r.URL.Query().Get("offset")
+	offset := 0
+	err := error(nil)
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error reading offset: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
 
-	err := h.app.EndOfDayAuto(r.Context(), userId, userName)
+	err = h.app.EndOfDayAuto(r.Context(), userId, userName, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error ending day: %v", err), http.StatusInternalServerError)
 		return
