@@ -63,7 +63,7 @@ func (a *Application) CreateTasks(ctx context.Context, tasks []CreateTaskParams,
 	printerTasks := []printer.TaskInput{}
 	user, err := a.Q.GetUserById(ctx, userId)
 	for _, task := range tasks {
-		_, err := a.Q.CreateTask(ctx, repository.CreateTaskParams{
+		ID, err := a.Q.CreateTask(ctx, repository.CreateTaskParams{
 			Title:       task.Title,
 			Description: pgtype.Text{String: task.Description, Valid: task.Description != ""},
 			Priority:    pgtype.Int4{Int32: task.Priority, Valid: task.Priority > 0 && task.Priority <= 5},
@@ -74,6 +74,7 @@ func (a *Application) CreateTasks(ctx context.Context, tasks []CreateTaskParams,
 			continue
 		}
 		printerTasks = append(printerTasks, printer.TaskInput{
+			ID:          ID,
 			Title:       task.Title,
 			Description: task.Description,
 			Priority:    task.Priority,

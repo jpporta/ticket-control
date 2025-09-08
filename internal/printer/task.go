@@ -100,6 +100,7 @@ func (p *Printer) PrintTask(
 }
 
 type TaskInput struct {
+	ID                 int32
 	Title, Description string
 	Priority           int32
 	CreatedBy          string
@@ -127,6 +128,7 @@ func (p Printer) printSingleTask(task TaskInput, template *template.Template) er
 	}
 
 	err = template.Execute(file, taskInput{
+		ID:              task.ID,
 		Title:           task.Title,
 		Description:     task.Description,
 		PriorityDisplay: priorityDisplay,
