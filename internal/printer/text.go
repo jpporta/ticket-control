@@ -21,7 +21,6 @@ func (p *Printer) PrintText(text string) error {
 	if err != nil {
 		return err
 	}
-
 	err = p.e.PrintAndCut()
 	if err != nil {
 		return err

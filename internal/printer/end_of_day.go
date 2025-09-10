@@ -21,7 +21,7 @@ func (p *Printer) PrintEndOfDay(input EndOfDayInput) error {
 		p.queue = append(p.queue, func() error {
 			return p.PrintEndOfDay(input)
 		})
-		return fmt.Errorf("Printer is disabled, queuing task: %s\n", input)
+		return fmt.Errorf("Printer is disabled, queuing task: %v\n", input)
 	}
 	close, err := p.start()
 	if err != nil {

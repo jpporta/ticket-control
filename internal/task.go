@@ -122,5 +122,9 @@ func (a *Application) MarkTaskAsDone(ctx context.Context, taskId, userId int32) 
 	if err != nil {
 		return fmt.Errorf("Error marking task as done: %w", err)
 	}
+	err = a.Printer.PrintBip()
+	if err != nil {
+		return fmt.Errorf("Error printing bip: %w", err)
+	}
 	return nil
 }

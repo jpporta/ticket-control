@@ -34,3 +34,6 @@ typst-task:
 	@echo "Watch Typst task..."
 	typst watch ./internal/printer/models/task.typ task.pdf
 
+test-printer:
+	@echo "Running tests for the printer package..."
+	go test -v ./internal/printer/... -count=1
