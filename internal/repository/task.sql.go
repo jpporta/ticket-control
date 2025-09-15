@@ -13,20 +13,19 @@ import (
 
 const completeTasks = `-- name: CompleteTasks :one
 UPDATE task
-SET completed_at = NOW()
+SET completed_at = NOW(), completed_by = $2
 WHERE id = ANY($1::int[])
-AND created_by = $2
 AND completed_at IS NULL
 RETURNING count(*) AS total
 `
 
 type CompleteTasksParams struct {
-	Column1   []int32
-	CreatedBy int32
+	Column1     []int32
+	CompletedBy pgtype.Int4
 }
 
 func (q *Queries) CompleteTasks(ctx context.Context, arg CompleteTasksParams) (int64, error) {
-	row := q.db.QueryRow(ctx, completeTasks, arg.Column1, arg.CreatedBy)
+	row := q.db.QueryRow(ctx, completeTasks, arg.Column1, arg.CompletedBy)
 	var total int64
 	err := row.Scan(&total)
 	return total, err
@@ -77,17 +76,17 @@ SELECT count(*) AS total
 FROM task
 WHERE completed_at >= $1
 AND completed_at < $2
-AND created_by = $3
+AND completed_by = $3
 `
 
 type GetNoCompletedTasksParams struct {
 	CompletedAt   pgtype.Timestamp
 	CompletedAt_2 pgtype.Timestamp
-	CreatedBy     int32
+	CompletedBy   pgtype.Int4
 }
 
 func (q *Queries) GetNoCompletedTasks(ctx context.Context, arg GetNoCompletedTasksParams) (int64, error) {
-	row := q.db.QueryRow(ctx, getNoCompletedTasks, arg.CompletedAt, arg.CompletedAt_2, arg.CreatedBy)
+	row := q.db.QueryRow(ctx, getNoCompletedTasks, arg.CompletedAt, arg.CompletedAt_2, arg.CompletedBy)
 	var total int64
 	err := row.Scan(&total)
 	return total, err
@@ -155,17 +154,16 @@ func (q *Queries) GetOpenTasks(ctx context.Context, createdBy int32) ([]GetOpenT
 
 const markTaskAsDone = `-- name: MarkTaskAsDone :exec
 UPDATE task
-SET completed_at = NOW()
+SET completed_at = NOW(), completed_by = $2
 WHERE id = $1
-AND created_by = $2
 `
 
 type MarkTaskAsDoneParams struct {
-	ID        int32
-	CreatedBy int32
+	ID          int32
+	CompletedBy pgtype.Int4
 }
 
 func (q *Queries) MarkTaskAsDone(ctx context.Context, arg MarkTaskAsDoneParams) error {
-	_, err := q.db.Exec(ctx, markTaskAsDone, arg.ID, arg.CreatedBy)
+	_, err := q.db.Exec(ctx, markTaskAsDone, arg.ID, arg.CompletedBy)
 	return err
 }

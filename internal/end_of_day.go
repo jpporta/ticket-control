@@ -44,8 +44,8 @@ func (a *Application) EndOfDayWithTasks(ctx context.Context, userId int32, userN
 		return fmt.Errorf("Error getting tasks created today: %w", err)
 	}
 	noDone, err := a.Q.CompleteTasks(ctx, repository.CompleteTasksParams{
-		Column1:   doneTasks,
-		CreatedBy: userId,
+		Column1:     doneTasks,
+		CompletedBy: pgtype.Int4{Int32: userId, Valid: true},
 	})
 
 	if err != nil {
@@ -73,7 +73,7 @@ func (a *Application) EndOfDayAuto(ctx context.Context, userId int32, userName s
 	noDoneToday, err := a.Q.GetNoCompletedTasks(ctx, repository.GetNoCompletedTasksParams{
 		CompletedAt:   pgtype.Timestamp{Time: start, Valid: true},
 		CompletedAt_2: pgtype.Timestamp{Time: end, Valid: true},
-		CreatedBy:     userId,
+		CompletedBy:   pgtype.Int4{Int32: userId, Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("Error completing tasks: %w", err)

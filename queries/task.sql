@@ -30,18 +30,16 @@ SELECT count(*) AS total
 FROM task
 WHERE completed_at >= $1
 AND completed_at < $2
-AND created_by = $3;
+AND completed_by = $3;
 
 -- name: CompleteTasks :one
 UPDATE task
-SET completed_at = NOW()
+SET completed_at = NOW(), completed_by = $2
 WHERE id = ANY($1::int[])
-AND created_by = $2
 AND completed_at IS NULL
 RETURNING count(*) AS total;
 
 -- name: MarkTaskAsDone :exec
 UPDATE task
-SET completed_at = NOW()
-WHERE id = $1
-AND created_by = $2;
+SET completed_at = NOW(), completed_by = $2
+WHERE id = $1;
