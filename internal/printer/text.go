@@ -78,17 +78,3 @@ func (p *Printer) loadTemplates() error {
 	return nil
 }
 
-func (p *Printer) TooglePrinter(state bool) {
-	p.Enabled = state
-	if state {
-		for _, task := range p.queue {
-			if err := task(); err != nil {
-				fmt.Printf("Error executing queued task: %v\n", err)
-			}
-		}
-		p.queue = nil
-	} else {
-		p.queue = []func() error{}
-		fmt.Println("Printer disabled, tasks will be queued.")
-	}
-}
