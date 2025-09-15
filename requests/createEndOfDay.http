@@ -9,3 +9,7 @@ X-Api-Key: {{API_KEY}}
 ###
 PATCH {{host}}/end-of-day?offset=-1 HTTP/2
 X-Api-Key: {{API_KEY}}
+
+###
+PATCH {{host}}/end-of-day?start=2025-09-12&end=2025-09-14 HTTP/2
+X-Api-Key: {{API_KEY}}

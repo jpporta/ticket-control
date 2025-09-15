@@ -12,6 +12,7 @@ import (
 type EndOfDayInput struct {
 	CreatedBy string
 	Day       time.Time
+	EndDay    time.Time
 	NoTasks   int
 	NoDone    int
 }

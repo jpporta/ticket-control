@@ -10,11 +10,7 @@ import (
 	"github.com/jpporta/ticket-control/internal/repository"
 )
 
-func (a *Application) getUserTasksOfToday(ctx context.Context, userId int32, offset int) (int64, error) {
-	t := time.Now()
-	t = t.AddDate(0, 0, offset)
-	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-	end := start.Add(24 * time.Hour)
+func (a *Application) getUserTasksOfToday(ctx context.Context, userId int32, start, end time.Time) (int64, error) {
 	taskCreatedToday, err := a.Q.GetNoUsersTask(ctx, repository.GetNoUsersTaskParams{
 		CreatedBy:   userId,
 		CreatedAt:   pgtype.Timestamp{Time: start, Valid: true},
@@ -27,7 +23,11 @@ func (a *Application) getUserTasksOfToday(ctx context.Context, userId int32, off
 }
 
 func (a *Application) EndOfDay(ctx context.Context, userId int32, userName string, noDone int, offset int) error {
-	taskCreatedToday, err := a.getUserTasksOfToday(ctx, userId, offset)
+	t := time.Now()
+	t = t.AddDate(0, 0, offset)
+	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	end := start.Add(24 * time.Hour)
+	taskCreatedToday, err := a.getUserTasksOfToday(ctx, userId, start, end)
 	if err != nil {
 		return fmt.Errorf("Error getting tasks created today: %w", err)
 	}
@@ -39,7 +39,11 @@ func (a *Application) EndOfDay(ctx context.Context, userId int32, userName strin
 	})
 }
 func (a *Application) EndOfDayWithTasks(ctx context.Context, userId int32, userName string, doneTasks []int32, offset int) error {
-	taskCreatedToday, err := a.getUserTasksOfToday(ctx, userId, offset)
+	t := time.Now()
+	t = t.AddDate(0, 0, offset)
+	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	end := start.Add(24 * time.Hour)
+	taskCreatedToday, err := a.getUserTasksOfToday(ctx, userId, start, end)
 	if err != nil {
 		return fmt.Errorf("Error getting tasks created today: %w", err)
 	}
@@ -60,15 +64,14 @@ func (a *Application) EndOfDayWithTasks(ctx context.Context, userId int32, userN
 }
 
 func (a *Application) EndOfDayAuto(ctx context.Context, userId int32, userName string, offset int) error {
-	taskCreatedToday, err := a.getUserTasksOfToday(ctx, userId, offset)
-	if err != nil {
-		return fmt.Errorf("Error getting tasks created today: %w", err)
-	}
-
 	t := time.Now()
 	t = t.AddDate(0, 0, offset)
 	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	end := start.Add(24 * time.Hour)
+	taskCreatedToday, err := a.getUserTasksOfToday(ctx, userId, start, end)
+	if err != nil {
+		return fmt.Errorf("Error getting tasks created today: %w", err)
+	}
 
 	noDoneToday, err := a.Q.GetNoCompletedTasks(ctx, repository.GetNoCompletedTasksParams{
 		CompletedAt:   pgtype.Timestamp{Time: start, Valid: true},
@@ -84,4 +87,28 @@ func (a *Application) EndOfDayAuto(ctx context.Context, userId int32, userName s
 		NoTasks:   int(taskCreatedToday),
 		NoDone:    int(noDoneToday),
 	})
+}
+
+func (a *Application) EndOfWeekend(ctx context.Context, userId int32, userName string, start, end time.Time) error {
+
+	noCreated, err := a.getUserTasksOfToday(ctx, userId, start, end)
+	if err != nil {
+		return fmt.Errorf("Error getting tasks created today: %w", err)
+	}
+	noDone, err := a.Q.GetNoCompletedTasks(ctx, repository.GetNoCompletedTasksParams{
+		CompletedAt:   pgtype.Timestamp{Time: start, Valid: true},
+		CompletedAt_2: pgtype.Timestamp{Time: end, Valid: true},
+		CompletedBy:   pgtype.Int4{Int32: userId, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("Error completing tasks: %w", err)
+	}
+	return a.Printer.PrintEndOfDay(printer.EndOfDayInput{
+		CreatedBy: userName,
+		Day:       start,
+		EndDay:    end,
+		NoTasks:   int(noCreated),
+		NoDone:    int(noDone),
+	})
+
 }
