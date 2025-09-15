@@ -4,10 +4,12 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"text/template"
+	"time"
 
 	"github.com/hennedo/escpos"
 	"github.com/jackc/pgx/v5"
@@ -65,4 +67,20 @@ func (p *Printer) start() (func(), error) {
 func (p *Printer) Reset() {
 	p.e.WriteRaw([]byte{0x1B, byte('@')})
 	p.e.WriteRaw([]byte{0x1B, 0x52, 0x00})
+}
+
+func (p *Printer) TooglePrinter(state bool) {
+	p.Enabled = state
+	if state {
+		for _, task := range p.queue {
+			if err := task(); err != nil {
+				fmt.Printf("Error executing queued task: %v\n", err)
+			}
+			time.Sleep(1 * time.Second) // Small delay between tasks
+		}
+		p.queue = nil
+	} else {
+		p.queue = []func() error{}
+		fmt.Println("Printer disabled, tasks will be queued.")
+	}
 }
