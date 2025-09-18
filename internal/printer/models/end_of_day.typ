@@ -12,7 +12,7 @@
 #rect(fill: pat, width: 100%, height: 60pt, stroke: 1pt)
 
 = {{ .Day.Format "02 January 2006" }}
-{{ if .EndDay }}
+{{ if not .EndDay.IsZero }}
 = {{ .EndDay.Format "02 January 2006" }}
 {{ end }}
 == {{ .CreatedBy }}
