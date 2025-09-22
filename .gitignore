@@ -4,3 +4,4 @@ data/**/*
 static/fonts/*
 
 http-client.env.json
+static/BerkeleyMonoNerdFont-Bold.ttf
