@@ -54,6 +54,8 @@ func (p *Printer) PrintTask(
 		priority = 0
 	}
 	switch priority {
+	case -2:
+		priorityDisplay = ""
 	case -1:
 		priorityDisplay = ""
 	case 0:
