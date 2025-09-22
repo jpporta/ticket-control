@@ -96,9 +96,12 @@ type openTasks struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func (a *Application) GetOpenTasks(ctx context.Context, userId int32) ([]openTasks, error) {
+func (a *Application) GetOpenTasks(ctx context.Context, userId int32, amount, page int) ([]openTasks, error) {
 	tasks := []openTasks{}
-	tasks_db, err := a.Q.GetOpenTasks(ctx, userId)
+	tasks_db, err := a.Q.GetOpenTasks(ctx, repository.GetOpenTasksParams{
+		Limit:  int32(amount),
+		Offset: int32(page * amount),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("Error getting open tasks: %w", err)
 	}

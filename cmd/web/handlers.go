@@ -153,14 +153,22 @@ func (h *Handlers) createTask(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) getOpenTasks(w http.ResponseWriter, r *http.Request) {
 	userId := r.Context().Value("userId").(int32)
-	tasks, err := h.app.GetOpenTasks(r.Context(), userId)
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil || page < 0 {
+		page = 0
+	}
+	tasks, err := h.app.GetOpenTasks(r.Context(), userId, limit, page)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error retrieving tasks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(tasks); err != nil {
 		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
 		return
@@ -168,8 +176,8 @@ func (h *Handlers) getOpenTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	response := map[string]string{"status": "ok", "now": time.Now().Local().Format(time.RFC3339)}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
