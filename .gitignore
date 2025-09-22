@@ -1,5 +1,6 @@
 data/**/*
 .env
 **/*.pdf
+static/fonts/*
 
 http-client.env.json

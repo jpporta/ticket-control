@@ -11,7 +11,7 @@ FROM alpine:latest
 RUN apk update && apk add typst fontconfig
 
 COPY --from=builder /app/server ./
-COPY --from=builder /app/static/JetBrainsMono-NFM.ttf /usr/share/fonts/truetype/
+COPY --from=builder /app/static/fonts/* /usr/share/fonts/truetype/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 RUN fc-cache -f -v
