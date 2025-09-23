@@ -1,7 +1,7 @@
 #set page(width: 300pt, height: auto)
 #set align(center)
 #set text(
-		font: "JetBrainsMono NF",
+		font: "BerkeleyMono Nerd Font",
 		size: 13pt
 )
 
