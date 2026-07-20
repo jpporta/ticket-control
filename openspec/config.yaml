@@ -1,0 +1,72 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+context: |
+  Project: ticket-control — personal Go service that prints API-driven "tickets"
+  on an 80mm ESC/POS thermal printer over TCP (:9100) and persists them in Postgres.
+
+  Tech stack:
+    - Go 1.24.5, stdlib net/http with method-aware ServeMux (1.22+), served over h2c
+    - Postgres via jackc/pgx/v5; sqlc for typed queries; goose for migrations
+    - github.com/hennedo/escpos for ESC/POS over a raw TCP socket
+    - robfig/cron/v3 for scheduled jobs (recurring tasks + printer quiet-hours)
+    - github.com/typst/typst CLI invoked via os/exec to typeset receipts → PNG → printer
+    - BerkeleyMono Nerd Font (font file is gitignored — must be supplied separately at static/fonts/)
+
+  Conventions:
+    - Handlers in cmd/web/ are thin: parse → call Application method → encode response.
+    - Business logic lives in internal/*.go, one file per domain (task, list, link, schedule, end_of_day, events).
+    - All SQL access goes through internal/repository/ (sqlc-generated). NEVER edit generated files;
+      change queries/*.sql and run `make generate` (sqlc generate).
+    - All schema changes are goose migrations in migrations/*.sql. Use `make new_migration name=foo`
+      and `make up` to apply.
+    - Typst templates live in internal/printer/models/*.typ and are embedded via go:embed.
+      Adding a template: create the .typ file, parse it in internal/printer/text.go loadTemplates,
+      and add a Print<X> method that follows the existing typst-shell-out pattern.
+    - Per-user daily quotas live in internal/{task,list,link}.go (50 tasks, 50 links, 10 lists).
+    - Print-then-store with rollback: Application methods insert the DB row first, then print; on
+      print failure they delete the row. Do not change this ordering without good reason.
+    - Printer can be disabled (manual toggle or quiet-hours cron). When disabled, Print<X> methods
+      queue closures and return an error; the queue flushes when re-enabled via TooglePrinter(true).
+    - Auth: X-Api-Key header, resolved via logRequestMiddleware → authMiddleware. userId/userName
+      are stashed in context.
+    - Daily quotas and "user already printed today" checks rely on time.Now() — server timezone matters.
+
+  Domain:
+    - Personal productivity infra. Each API call = one physical paper artifact. Quotas are real
+      (you can't print 1000 tasks/day; the printer runs out of paper).
+    - Quiet hours are 22:00 off / 08:00 on by default in internal/cron.go createInternalJobs.
+    - Calendar import uses an Apple Shortcuts envelope: POST /events body is {"body": "<json string>"}
+      which is then json.Unmarshal'd again. Don't "simplify" that — clients depend on it.
+    - Schedules can carry a check_function (is_last_workday_of_month / is_last_weekday_of_middle /
+      is_last_weekday_of_10) — billing-style cron predicates implemented in internal/utils/time.go.
+
+  Known issues (documented in AGENTS.md, do NOT fix without an explicit change proposal):
+    - queries/list.sql DeleteLastList selects from `task` instead of `list` (latent, list rollback).
+    - cmd/web/endOfDay.go defines endOfWeekend and endOfDayWithTasks handlers never wired to the mux.
+    - cmd/cli/main.go main() is a no-op; the real CLI helpers (createUser, etc.) are dead code.
+    - internal/utils/dither.go and rasterize.go are only used by dead CLI test code.
+    - BerkeleyMono Nerd Font is not in the repo (gitignored); printing needs it on disk.
+
+  Non-goals (do not propose unless asked):
+    - Multi-tenancy beyond the current per-user quota model
+    - Auth beyond the static X-Api-Key (no OAuth, no JWT, no sessions)
+    - Replacing ESC/POS or Typst pipeline (this is the whole point of the project)
+    - Cloud-native deployment (this runs on a home LAN against one printer)
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
