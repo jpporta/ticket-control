@@ -116,13 +116,15 @@ const getOpenTasks = `-- name: GetOpenTasks :many
 SELECT id, title, priority, created_at
 FROM task
 WHERE completed_at IS NULL
+AND created_by = $3
 ORDER BY created_at DESC, priority DESC
 LIMIT $1 OFFSET $2
 `
 
 type GetOpenTasksParams struct {
-	Limit  int32
-	Offset int32
+	Limit     int32
+	Offset    int32
+	CreatedBy int32
 }
 
 type GetOpenTasksRow struct {
@@ -133,7 +135,7 @@ type GetOpenTasksRow struct {
 }
 
 func (q *Queries) GetOpenTasks(ctx context.Context, arg GetOpenTasksParams) ([]GetOpenTasksRow, error) {
-	rows, err := q.db.Query(ctx, getOpenTasks, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getOpenTasks, arg.Limit, arg.Offset, arg.CreatedBy)
 	if err != nil {
 		return nil, err
 	}

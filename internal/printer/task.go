@@ -3,13 +3,12 @@ package printer
 import (
 	"fmt"
 	"image"
-	_ "image/png"
-	"log"
-	"os"
-	"os/exec"
+	"log/slog"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/jpporta/ticket-control/internal/printer/render"
 )
 
 type taskInput struct {
@@ -32,70 +31,54 @@ func (p *Printer) PrintTask(
 		p.queue = append(p.queue, func() error {
 			return p.PrintTask(id, title, description, priority, createdBy, createdAt)
 		})
-		return fmt.Errorf("Printer is disabled, queuing task: %s\n", title)
+		return fmt.Errorf("%w: queuing task: %s", errPrinterOffline, title)
 	}
-	close, err := p.start()
-	if err != nil {
-		fmt.Println("Error starting printer:", err)
-		return err
-	}
-	defer close()
-	template, ok := p.templates["task"]
+	tmpl, ok := p.templates["task"]
 	if !ok {
 		return fmt.Errorf("task template not found")
 	}
 
-	file, err := os.CreateTemp("", "task-*.typ")
-	if err != nil {
-		return fmt.Errorf("error creating temp file: %w", err)
-	}
 	var priorityDisplay string
 	switch priority {
 	case -2:
-		priorityDisplay = ""
+		priorityDisplay = "❀"
 	case -1:
-		priorityDisplay = ""
+		priorityDisplay = "⏳"
 	case 1, 2, 3, 4, 5:
-		priorityDisplay = strings.TrimSpace(strings.Repeat(" ", int(priority)))
+		priorityDisplay = strings.TrimSpace(strings.Repeat("! ", int(priority)))
 	default:
-		priorityDisplay = ""
+		priorityDisplay = "·"
 	}
 
-	template.Execute(file, taskInput{
+	pngFile, cleanup, err := render.Render(tmpl, taskInput{
 		ID:              id,
 		Title:           title,
 		Description:     description,
 		PriorityDisplay: priorityDisplay,
 		CreatedBy:       createdBy,
 		CreatedAt:       createdAt,
-	})
-	cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
-	err = cmd.Run()
+	}, "task")
 	if err != nil {
-		return fmt.Errorf("error executing typst command: %w", err)
+		return err
 	}
+	defer cleanup()
 
-	img_raw, err := os.Open(strings.Replace(file.Name(), ".typ", ".png", 1))
+	close, err := p.start()
 	if err != nil {
-		return fmt.Errorf("error opening image file: %w", err)
+		slog.Error("printer start", "err", err)
+		return err
 	}
-	defer img_raw.Close()
-	img, _, err := image.Decode(img_raw)
+	defer close()
+
+	img, _, err := image.Decode(pngFile)
+	pngFile.Close()
 	if err != nil {
-		return fmt.Errorf("error decoding image: %w", err)
+		return fmt.Errorf("decode task png: %w", err)
 	}
-	if img.Bounds().Max.Y%8 != 0 {
-		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
-		img = img.(interface {
-			SubImage(r image.Rectangle) image.Image
-		}).SubImage(cropRect)
-	}
+	img = render.CropHeight8(img)
+
 	p.Reset()
-	err = p.printImage(img)
-	if err != nil {
-		return fmt.Errorf("error printing image: %w", err)
-	}
-	return nil
+	return p.printImage(img)
 }
 
 type TaskInput struct {
@@ -106,87 +89,62 @@ type TaskInput struct {
 	CreatedAt          time.Time
 }
 
-func (p Printer) printSingleTask(task TaskInput, template *template.Template) error {
-	file, err := os.CreateTemp("", "task-*.typ")
+func (p *Printer) printSingleTask(task TaskInput, tmpl *template.Template) error {
+	pngFile, cleanup, err := render.Render(tmpl, taskInput{
+		ID:          task.ID,
+		Title:       task.Title,
+		Description: task.Description,
+		PriorityDisplay: priorityDisplayFor(task.Priority),
+		CreatedBy:   task.CreatedBy,
+		CreatedAt:   task.CreatedAt,
+	}, "task")
 	if err != nil {
-		return fmt.Errorf("error creating temp file: %w", err)
+		return err
 	}
-	defer os.Remove(file.Name())
-	var priorityDisplay string
-	priority := task.Priority
-	if priority < -1 || priority > 5 {
-		priority = 0
-	}
-	switch priority {
-	case -1:
-		priorityDisplay = ""
-	case 0:
-		priorityDisplay = ""
-	default:
-		priorityDisplay = strings.TrimSpace(strings.Repeat(" ", int(priority)))
-	}
+	defer cleanup()
 
-	err = template.Execute(file, taskInput{
-		ID:              task.ID,
-		Title:           task.Title,
-		Description:     task.Description,
-		PriorityDisplay: priorityDisplay,
-		CreatedBy:       task.CreatedBy,
-		CreatedAt:       task.CreatedAt,
-	})
+	img, _, err := image.Decode(pngFile)
+	pngFile.Close()
 	if err != nil {
-		return fmt.Errorf("error parsing template: %w", err)
+		return fmt.Errorf("decode task png: %w", err)
 	}
-	cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("error executing typst command: %w", err)
-	}
-
-	img_raw, err := os.Open(strings.Replace(file.Name(), ".typ", ".png", 1))
-	if err != nil {
-		return fmt.Errorf("error opening image file: %w", err)
-	}
-	defer img_raw.Close()
-	img, _, err := image.Decode(img_raw)
-	if err != nil {
-		return fmt.Errorf("error decoding image: %w", err)
-	}
-	if img.Bounds().Max.Y%8 != 0 {
-		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
-		img = img.(interface {
-			SubImage(r image.Rectangle) image.Image
-		}).SubImage(cropRect)
-	}
-	err = p.printImage(img)
-	if err != nil {
-		return fmt.Errorf("error printing image: %w", err)
-	}
-	return nil
+	img = render.CropHeight8(img)
+	return p.printImage(img)
 }
+
+func priorityDisplayFor(priority int32) string {
+	switch {
+	case priority == -1:
+		return "⏳"
+	case priority >= 1 && priority <= 5:
+		return strings.TrimSpace(strings.Repeat("! ", int(priority)))
+	default:
+		return "·"
+	}
+}
+
 func (p *Printer) PrintTasks(tasks []TaskInput) error {
 	if !p.Enabled {
 		p.queue = append(p.queue, func() error {
 			return p.PrintTasks(tasks)
 		})
-		return fmt.Errorf("Printer is disabled, queuing tasks\n")
+		return fmt.Errorf("%w: queuing tasks", errPrinterOffline)
 	}
-	close, err := p.start()
-	if err != nil {
-		fmt.Println("Error starting printer:", err)
-		return err
-	}
-	defer close()
-	template, ok := p.templates["task"]
+	tmpl, ok := p.templates["task"]
 	if !ok {
 		return fmt.Errorf("task template not found")
 	}
 
+	close, err := p.start()
+	if err != nil {
+		slog.Error("printer start", "err", err)
+		return err
+	}
+	defer close()
 	p.Reset()
 	for _, task := range tasks {
-		err := p.printSingleTask(task, template)
-		if err != nil {
-			log.Println("error printing task:", err, "Task:", task)
+		if err := p.printSingleTask(task, tmpl); err != nil {
+			slog.Error("print task", "task", task, "err", err)
 		}
 	}
 	return nil

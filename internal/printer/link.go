@@ -3,10 +3,9 @@ package printer
 import (
 	"fmt"
 	"image"
-	_ "image/png"
-	"os"
-	"os/exec"
-	"strings"
+	"log/slog"
+
+	"github.com/jpporta/ticket-control/internal/printer/render"
 )
 
 type LinkInput struct {
@@ -16,78 +15,44 @@ type LinkInput struct {
 	CreatedBy string
 }
 
-func (p *Printer) PrintLink(
-	link LinkInput,
-) error {
+func (p *Printer) PrintLink(link LinkInput) error {
 	if !p.Enabled {
 		p.queue = append(p.queue, func() error {
 			return p.PrintLink(link)
 		})
-		return fmt.Errorf("Printer is disabled, queuing link: %s\n", link.Title)
+		return fmt.Errorf("%w: queuing link: %s", errPrinterOffline, link.Title)
 	}
-	close, err := p.start()
-	if err != nil {
-		return err
-	}
-	defer close()
-	// Load Template
-	template, ok := p.templates["link_header"]
+	tmpl, ok := p.templates["link_header"]
 	if !ok {
 		return fmt.Errorf("link template not found")
 	}
 
-	// Create temporary file for Typst
-	file, err := os.CreateTemp("", "link-*.typ")
+	pngFile, cleanup, err := render.Render(tmpl, link, "link")
 	if err != nil {
-		return fmt.Errorf("error creating temp file: %w", err)
+		return err
 	}
+	defer cleanup()
 
-	// Execute the template into the temporary file
-	template.Execute(file, link)
-
-	// Execute Typst command to convert .typ to .png
-	cmd := exec.Command("typst", "c", file.Name(), "-f", "png")
-	err = cmd.Run()
+	img, _, err := image.Decode(pngFile)
+	pngFile.Close()
 	if err != nil {
-		return fmt.Errorf("error executing typst command: %w", err)
+		return fmt.Errorf("decode link png: %w", err)
 	}
+	img = render.CropHeight8(img)
 
-	// Open the generated image file
-	img_raw, err := os.Open(strings.Replace(file.Name(), ".typ", ".png", 1))
+	close, err := p.start()
 	if err != nil {
-		return fmt.Errorf("error opening image file: %w", err)
+		slog.Error("printer start", "err", err)
+		return err
 	}
-	defer img_raw.Close()
-
-	// Decode the image
-	img, _, err := image.Decode(img_raw)
-	if err != nil {
-		return fmt.Errorf("error decoding image: %w", err)
-	}
-
-	// Crop the image if its height is not a multiple of 8 for the printer
-	if img.Bounds().Max.Y%8 != 0 {
-		cropRect := image.Rect(0, 0, img.Bounds().Max.X, img.Bounds().Max.Y-(img.Bounds().Max.Y%8))
-		img = img.(interface {
-			SubImage(r image.Rectangle) image.Image
-		}).SubImage(cropRect)
-	}
-
-	// Reset the printer state
+	defer close()
 	p.Reset()
-	_, err = p.e.PrintImage(img)
-	if err != nil {
-		return fmt.Errorf("error printing image: %w", err)
+	if _, err := p.e.PrintImage(img); err != nil {
+		return fmt.Errorf("print link image: %w", err)
 	}
-
 	p.e.WriteRaw([]byte{0x1b, 0x61, 0x01})
-	_, err = p.e.QRCode(link.URL, true, 10, 10)
-	if err != nil {
-		return fmt.Errorf("error printing qr: %w", err)
+	if _, err := p.e.QRCode(link.URL, true, 10, 10); err != nil {
+		return fmt.Errorf("print link qr: %w", err)
 	}
-	err = p.e.PrintAndCut()
-	if err != nil {
-		return fmt.Errorf("error printing: %w", err)
-	}
-	return nil
+	return p.e.PrintAndCut()
 }

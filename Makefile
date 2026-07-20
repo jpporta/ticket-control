@@ -9,7 +9,7 @@ tidy:
 
 cli:
 	@echo "Running the CLI application..."
-	go run ./cmd/cli/* --name="Andiara Porta"
+	go run ./cmd/cli user create --name "$(name)"
 run:
 	@echo "Running the application..."
 	go run ./cmd/web/*
@@ -33,6 +33,10 @@ generate:
 typst-task:
 	@echo "Watch Typst task..."
 	typst watch ./internal/printer/models/task.typ task.pdf
+
+typst-list:
+	@echo "Watch Typst list..."
+	typst watch ./internal/printer/models/list.typ list.pdf
 
 test-printer:
 	@echo "Running tests for the printer package..."

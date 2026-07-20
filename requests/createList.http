@@ -6,12 +6,15 @@ POST {{host}}/list HTTP/1.1
 X-Api-Key: {{API_KEY}}
 
 {
-  "items": [
-"Pão",
-"Frios",
-"Requeijão",
-"Frutas pras vitaminas",
-"Ovo"
-  ],
-  "title": "Compras"
+  "title": "Compras",
+  "items": "Pão\nFrios\nRequeijão\nFrutas pras vitaminas\nOvo"
+}
+
+###
+
+POST {{host}}/list HTTP/1.1
+X-Api-Key: {{API_KEY}}
+
+{
+  "items": "Pão\nFrios\nRequeijão"
 }

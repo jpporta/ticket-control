@@ -2,6 +2,8 @@ package utils
 
 import (
 	"time"
+
+	"github.com/jpporta/ticket-control/internal/clock"
 )
 
 func isWeekend(t time.Time) bool {
@@ -24,18 +26,18 @@ func IsDayLastWorkDayMonth(t time.Time) bool {
 }
 
 func IsLastWeekdayMonth(fn func()) {
-	if IsDayLastWorkDayMonth(time.Now()) {
+	if IsDayLastWorkDayMonth(clock.Now()) {
 		fn()
 	}
 }
 
 func IsLastWorkdayToMiddle(fn func()) {
-	if isLastWorkdayUpTo(time.Now(), 15) {
+	if isLastWorkdayUpTo(clock.Now(), 15) {
 		fn()
 	}
 }
 func IsLastWorkdayTo10(fn func()) {
-	if isLastWorkdayUpTo(time.Now(), 10) {
+	if isLastWorkdayUpTo(clock.Now(), 10) {
 		fn()
 	}
 }

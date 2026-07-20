@@ -33,8 +33,8 @@ func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) (int32, 
 const deleteLastList = `-- name: DeleteLastList :exec
 DELETE FROM list
 WHERE id = (
-	SELECT id FROM task as t
-	WHERE t.created_by = $1
+	SELECT id FROM list as l
+	WHERE l.created_by = $1
 	ORDER BY created_at DESC
 	LIMIT 1
 )

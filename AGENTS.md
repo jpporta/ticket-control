@@ -40,24 +40,38 @@ an X-Api-Key auth scheme. Don't over-engineer.
 
 ## 3. Layout
 
+Layered: `cmd` → `service` → `<domain>` → `repository` → `printer`. Each layer
+depends only on the layer immediately below.
+
 ```
 cmd/
-  web/             HTTP server entrypoint, handlers, middleware, scheduler bootstrap
-  cli/             CLI entrypoint (see §12 — currently a no-op stub)
+  web/             HTTP server entrypoint, handlers, middleware, slog init
+    main.go        wires the *pgxpool.Pool, *printer.Printer, and *service.Services
+    handlers.go    thin HTTP handlers that depend only on *service.Services
+    middleware.go  logRequestMiddleware + authMiddleware
+    httperr.go     central error → HTTP status mapper (apperr.Kind → status)
+    endOfDay.go    end-of-day / weekend handler
+    schedule.go    schedule handlers
+    calendar.go    POST /events (Apple Shortcuts envelope)
+  cli/             subcommand dispatcher (user/printer/print)
 internal/
-  application.go   service object: Q (sqlc), Cron, Printer
-  task.go          task domain logic
-  list.go          list domain logic
-  link.go          link domain logic
-  schedule.go      schedule domain logic
-  end_of_day.go    end-of-day / weekend summaries
-  events.go        calendar-import handler logic
-  cron.go          cron scheduler + custom check-functions
+  clock/           Now() and Today() — single source of wall-clock time
+  apperr/          sentinel errors (ErrQuotaExceeded, ErrPrinterOffline, etc.)
+  ports/           Printer interface (the service-facing port)
+  service/         service container; constructs every domain Service
+  task/            task domain (service.go, types.go, quota.go)
+  list/            list domain
+  link/            link domain
+  schedule/        schedule domain + cron scheduler
+  endofday/        end-of-day / weekend summaries
+  events/          calendar-import (Apple Shortcuts)
   printer/         ESC/POS + Typst integration
-    *.go           one file per printable artifact (task, list, link, end_of_day, text, bip, image)
+    *.go           one file per printable artifact (task, list, link, end_of_day, text, bip)
+    render/        temp-file-lifecycle helper (executes Typst, cleans up both files)
     models/*.typ   Typst templates, embedded via go:embed
   repository/      sqlc-GENERATED. Do not edit. Regenerate via `make generate`.
-  utils/           date predicates, random key, dithering (mostly dead — see §12)
+    adapter/       per-domain adapters that satisfy each domain's Repo interface
+  utils/           date predicates, random key
 migrations/        goose migrations, one file per change
 queries/           sqlc input (the source of truth for SQL)
 requests/          .http files for manual API testing (use with the REST Client extension)
@@ -69,64 +83,63 @@ openspec/          OpenSpec specs and changes (see §10)
 
 ## 4. The print flow (read this before touching printer code)
 
-This is the single most important flow in the project. **Every** printed artifact goes
-through it.
+This is the single most important flow in the project. **Every** printed artifact goes through it.
 
 ```
 HTTP request
    │
    ▼
-cmd/web/handlers.go (parse JSON, pull userId from context, check quota)
+cmd/web/handlers.go (parse JSON, pull userId from context)
    │
    ▼
-internal/<domain>.go (Application method)
+internal/service (service.Printer is the ports.Printer interface)
    │
-   ├── 1. INSERT row into Postgres via internal/repository (sqlc)
-   │       if it fails: return 500. Nothing has been printed yet.
+   ▼
+internal/<domain>/service.go (e.g. task.Service.CreateTask)
    │
-   ├── 2. Call a.Printer.Print<X>(...)
-   │       if it fails: DELETE the row you just inserted, return 500.
-   │       (This is "print-then-store with rollback" — see internal/task.go:32-54,
-   │        internal/list.go:31-59, internal/link.go:31-58.)
+   ├── 1. INSERT row into Postgres via internal/repository (sqlc, through adapter)
+   │       if it fails: return apperr-mapped error. Nothing has been printed yet.
+   │
+   ├── 2. Call s.printer.Print<X>(...)  (the ports.Printer interface)
+   │       if it fails: DELETE the row you just inserted, return the wrapped error.
+   │       (This is "print-then-store with rollback" — see internal/task/service.go,
+   │        internal/list/service.go, internal/link/service.go.)
    │
    ▼
 internal/printer/<x>.go (e.g. task.go)
    │
-   ├── 3. Check p.Enabled. If false, append a closure to p.queue and return an error.
-   │       (The queue flushes when TooglePrinter(true) is called — see cron.go:65.)
+   ├── 3. Check p.Enabled. If false, append a closure to p.queue and return errPrinterOffline.
+   │       (The queue flushes when p.Toggle(true) is called.)
    │
    ├── 4. Open a TCP socket to p.IP:p.Port. Set p.e = escpos.New(socket).
    │       defer close().  (See printer.go start().)
    │
-   ├── 5. Execute a Go text/template over the embedded .typ file → write to os.CreateTemp("", "x-*.typ")
+   ├── 5. Call render.Render(tmpl, data, name) — see internal/printer/render/render.go.
+   │       Executes the template, shells out to typst, returns the PNG ReadCloser +
+   │       a cleanup func that removes both .typ and .png.
    │
-   ├── 6. exec.Command("typst", "c", file.Name(), "-f", "png").Run()
-   │       typst must be on PATH. The font must be discoverable by fontconfig
-   │       (the Dockerfile runs fc-cache after copying fonts into /usr/share/fonts/truetype/).
+   ├── 6. image.Decode the PNG, then render.CropHeight8 (height % 8 == 0).
    │
-   ├── 7. Open <file>.png, image.Decode, crop to multiple of 8 px tall (printer constraint).
+   ├── 7. p.Reset() (ESC @, ESC R 0) → p.printImage(img) (PrintImage + PrintAndCut).
    │
-   ├── 8. p.Reset() (ESC @, ESC R 0) → p.printImage(img) (PrintImage + PrintAndCut)
-   │
-   └── 9. defer close() runs → socket.Close(), p.e = nil.
+   └── 8. defer cleanup() and defer close() run → temp files gone, socket closed, p.e = nil.
 ```
 
 ### Gotchas specific to this flow
 
-- **Temp files leak.** The PNG is read but never explicitly removed. The .typ is
-  never removed. Don't copy that pattern when adding new types — defer `os.Remove(file.Name())`.
+- **Temp files are cleaned up.** The render helper owns the lifecycle. Don't bypass it.
 - **Typst template parsing happens once at startup** (`loadTemplates` in text.go). Adding
-  a new template means: drop the .typ file under `internal/printer/models/`, add a
-  `template.New("name").Parse(...)` call in `loadTemplates`, then write a `Print<X>`
-  method.
-- **8-pixel crop.** ESC/POS raster bitmaps need height % 8 == 0. Every Print<X>
-  method crops the image. If you're writing a new one, copy that crop block.
+  a new template means: drop the .typ file under `internal/printer/models/`, add the name
+  to the loop in `loadTemplates`, then write a `Print<X>` method.
+- **8-pixel crop.** ESC/POS raster bitmaps need height % 8 == 0. Use `render.CropHeight8`.
 - **The escpos library is small and quirky.** It uses `e.WriteRaw([]byte{...})` for raw
   bytes and `e.PrintImage` / `e.QRCode` / `e.PrintAndCut` for the higher-level ops.
   See `link.go` for an example of stacking an image + a QR code + a cut.
 - **Queue-on-disabled is closure-based.** Each `Print<X>` enqueues `func() error { return p.Print<X>(...) }`.
   When the printer is re-enabled, the queue drains with a 1-second sleep between jobs.
   Don't store state inside the closure other than the inputs — it captures by reference.
+- **`Printer` is an interface.** Defined in `internal/ports`; `*printer.Printer` satisfies
+  it via a compile-time assertion. Tests can supply stubs without importing TCP/Typst.
 
 ---
 
@@ -155,46 +168,43 @@ Always end with `make run` and a manual curl against `localhost:8000`.
 
 ## 6. Daily quotas
 
-Hardcoded in `internal/{task,list,link}.go`:
+Hardcoded in `internal/{task,list,link}/`:
 
-- `TASK_LIMIT = 50` per user per UTC day
-- `LINK_LIMIT = 50`
-- `LIST_LIMIT = 10`
+- `TaskLimit = 50` per user per UTC day
+- `LinkLimit = 50`
+- `ListLimit = 10`
 
-Quota check happens in the handler **before** the DB insert. If you add a new
+Quota check happens in the service **before** the DB insert. If you add a new
 artifact type, add a `<X>LimitReached` check in the same shape.
 
-Note: the day boundary is UTC (`time.UTC`). If you want local-time quotas, change
-the `time.Now().Date()` derivation in the limit functions.
-
----
+Note: the day boundary is UTC (`clock.Today()`). If you want local-time quotas,
+change the `clock.Now()` derivation in the limit functions.
 
 ## 7. Scheduler
 
-`internal/cron.go`:
+`internal/schedule/service.go`:
 
 - Two **internal jobs** are registered on `Start` (always on):
-  - `0 22 * * *` → `a.Printer.TooglePrinter(false)` (quiet hours start)
-  - `0 8 * * *` → `a.Printer.TooglePrinter(true)` (quiet hours end)
+  - `0 22 * * *` → `printer.Toggle(false)` (quiet hours start)
+  - `0 8 * * *` → `printer.Toggle(true)` (quiet hours end)
 - **User-defined jobs** come from the `schedule` table where `enabled = TRUE`.
   Each row has a cron expression and an optional `check_function` that gates
   execution (e.g. "last weekday of the month" for billing chores).
 
-  Available check_functions (defined in `internal/cron.go`, implemented in
-  `internal/utils/time.go`):
+  Available check_functions (defined as `schedule.CheckFunc` values, implemented
+  in `internal/utils/time.go`):
   - `is_last_workday_of_month`
   - `is_last_weekday_of_middle` (last workday on/before the 15th)
   - `is_last_weekday_of_10` (last workday on/before the 10th)
 
   Adding a new predicate: write `func Is<Name>(fn func())` in `internal/utils/time.go`,
-  add the string to `internal.PossibleCheckFunctions`, and register it in the
-  `funcMap` at the top of `internal/cron.go`.
+  and register it in the map passed to `schedule.New` in `cmd/web/main.go`.
 
-When a scheduled job fires, it calls `a.CreateTask(ctx, title, description, 0, createdBy)`
+When a scheduled job fires, it calls the `taskCallback` configured at `schedule.New`
 with priority 0 (which maps to the "no priority" icon in the Typst template).
 
 **Schedule state** lives in two places: the `schedule` table AND the in-memory
-`CronJob.jobs map[int32]cron.EntryID`. Toggling in the DB doesn't take effect until
+`Service.jobs map[int32]cron.EntryID`. Toggling in the DB doesn't take effect until
 the server restarts — toggling via `PUT /schedule?id=N` keeps both in sync.
 
 ---
@@ -206,57 +216,24 @@ All endpoints except `/health` require `X-Api-Key: <key>`.
 Flow in `cmd/web/middleware.go`:
 
 1. `logRequestMiddleware`:
-   - Reject if header missing.
-   - `GetUserByKey(key)` → user.
-   - `AddAccess(user_id, ip, path, method)` for the access log.
-   - Stash `userId` and `userName` in `r.Context()`.
+   - Reject if header missing → 401 (apperr.ErrUnauthorized).
+   - Look up via `adapter.User.GetUserByKey` → user ID + name.
+   - Log the access via `adapter.Access.AddAccess`.
+   - Stash user ID and name in `r.Context()` under typed keys.
 2. `authMiddleware`:
    - Returns 401 if `userId == 0` (i.e. lookup failed but we let the request through
      the previous step anyway).
 
 There's no rate limiting, no expiry, no revocation flow. Users are created via
-`cmd/cli` (currently broken — see §12). For development you can also create them
-with raw SQL: `INSERT INTO public."user"(name, api_key) VALUES ($1, $2);`.
-
----
+`make cli name="..."` which dispatches to `go run ./cmd/cli user create --name "..."`.
+The CLI uses the sqlc-generated `CreateUser` directly (no domain service for users yet).
 
 ## 9. Apple Shortcuts compatibility
 
 `POST /events` takes the body `{"body": "<JSON string>"}` — a nested JSON envelope
 because Apple Shortcuts doesn't let you set a raw request body directly. The handler
-unmarshals the outer object, then unmarshals `body` again. **Do not "fix" this** —
-it's a public contract with shortcuts the user has wired up.
-
----
-
-## 10. OpenSpec workflow
-
-This repo uses [OpenSpec](https://github.com/...) for spec-driven change management.
-
-```
-openspec/
-  config.yaml      context block (project conventions — read this)
-  specs/           main specs (the current source of truth for capabilities)
-  changes/         proposed changes, one folder per change
-    archive/       archived (merged) changes
-```
-
-Workflow:
-- `/opsx-explore` — think about something, no artifacts written.
-- `/opsx-propose <name>` — generate a proposal (proposal.md + design.md + tasks.md + delta specs).
-- `/opsx-apply <name>` — implement the tasks.
-- `/opsx-archive <name>` — fold the delta specs into main specs, move change to archive.
-
-Before writing code, check if a change already exists for your work. If not,
-propose one. Read `openspec/config.yaml` for the project context that gets
-injected into every artifact.
-
-Currently: no active changes, no main specs. The context in `config.yaml` is
-the only artifact. First proposals should probably seed main specs for the
-existing capabilities (tasks, lists, links, schedules, end-of-day, events, printer)
-so future changes have a baseline.
-
----
+in `cmd/web/calendar.go` unmarshals the outer object, then unmarshals `body` again.
+**Do not "fix" this** — it's a public contract with shortcuts the user has wired up.
 
 ## 11. Build / run / test
 
@@ -277,20 +254,15 @@ make generate
 # run the server (loads .env via the Makefile)
 make run               # listens on :8000 over h2c
 
-# create a user (currently broken — see §12)
+# create a user
 make cli name="Your Name"
-
-# test the printer directly
-make test-printer      # only runs TestBip in internal/printer/
 
 # watch a Typst template during edits
 make typst-task
 ```
 
-Tests today: only `TestBip` (tries to actually print — needs a real printer) and
-`internal/utils/time_test.go` (pure functions, safe to run anywhere).
-`make test-printer` will fail without a printer on `os.Getenv("DB_URL")`-reachable
-network.
+Tests today: only `internal/utils/time_test.go` (pure functions, safe to run anywhere).
+`go test ./...` runs in any environment.
 
 Docker:
 ```sh
@@ -307,58 +279,50 @@ gitignored, you must mount or bake them into the build context yourself.
 These are landmines an agent will trip over if it doesn't know. Documented here so
 they don't get re-discovered the hard way.
 
-1. **`queries/list.sql` `DeleteLastList`** — inner `SELECT` is from `task` instead
-   of `list`. Under list-create rollback, this deletes the wrong row. Latent because
-   list rollbacks are rare. Fix in `queries/list.sql` then `make generate`.
-
-2. **`cmd/web/endOfDay.go` has two dead handlers.** `endOfWeekend` (line 12) and
-   `endOfDayWithTasks` (line 75) are defined but **never registered** on the mux
-   in `cmd/web/main.go`. Only `endOfDay` and `endOfDayAuto` are wired. Either
-   register them with routes or delete the dead code.
-
-3. **`cmd/cli/main.go` is a stub.** `main()` only prints the current time. The
-   real CLI helpers (`createUser`, `createLinkTest`, `printListTest`,
-   `printTaskTest`, `printImageTest`, `simpleTest`) are dead — the Makefile runs
-   `go run ./cmd/cli/* --name="..."` expecting `createUser` to fire, but it
-   doesn't, because nothing calls it. Fix: wire up subcommands (e.g. with
-   `flag.NewFlagSet`) or convert to a simple `flag.Parse` + dispatch in `main()`.
-
-4. **`internal/utils/dither.go` + `internal/utils/rasterize.go`** — these
-   dithering algorithms are only referenced from the dead `printImageTest`
-   function in `cmd/cli/main.go`. Production printing uses escpos's `PrintImage`
-   directly, which does its own dithering. If you want to revive image printing,
-   keep this code; otherwise it's dead weight.
-
-5. **`internal/events.go` "already printed today"** — `hasUserAlreadyPrintedToday`
-   uses `noPrintedToday > 1` (off-by-one). Intentional? Unclear. Reads the
-   `access` table it itself wrote to in `logRequestMiddleware`. Fragile.
-
-6. **Font not in repo.** `static/fonts/*` is gitignored. The Typst templates
+1. **Font not in repo.** `static/fonts/*` is gitignored. The Typst templates
    hardcode `font: "BerkeleyMono Nerd Font"`. The Docker build copies from
    `static/fonts/`, so without the font file locally, both `docker build` and
    `make run` will fail at print time with a font-related Typst error. The
    project README mentions this is a paid font — supply it yourself.
 
-7. **`getOpenTasks` ignores `created_by`.** Look at `queries/task.sql` line 21-26:
-   it selects all open tasks, not just the user's. The handler in
-   `cmd/web/handlers.go:getOpenTasks` passes `userId` into `Application.GetOpenTasks`
-   but `Application.GetOpenTasks` (`internal/task.go:99`) doesn't pass it to the
-   query. Either filter by user (preferred — there's no use case for seeing other
-   people's open tasks) or document it as intentional.
+2. **`internal/events.Service.UserPrintedSinceUTCMidnight`** uses `noPrintedToday > 1`
+   (off-by-one). Reads the `access` table it itself wrote to in `logRequestMiddleware`.
+   Fragile; documented in code.
 
-8. **Two paths through `p.e.PrintImage`.** Most calls go through the internal
-   `printImage` (printer.go → image.go) which does `PrintImage` + `PrintAndCut`.
-   `internal/printer/link.go:78` calls `p.e.PrintImage` directly. The cut still
-   happens at the end of the link flow, but only because `PrintAndCut` is called
-   explicitly on line 88. If you change the wrapper, audit both call sites.
-
-9. **No graceful shutdown.** `cmd/web/main.go` traps signals but `os.Exit(1)`s
+3. **No graceful shutdown.** `cmd/web/main.go` traps signals but `os.Exit(1)`s
    hard. The cron job is stopped, but in-flight requests and queued print jobs
    are dropped. If that matters, add `server.Shutdown(ctx)` to the signal path.
 
-10. **No timezone awareness.** `TZ=America/Sao_Paulo` in the Dockerfile but the
-    app uses `time.Now()` and `time.UTC` interchangeably. Quota windows, end-of-day
-    offsets, and "today" all assume the server clock's UTC day boundary.
+4. **No timezone awareness.** `TZ=America/Sao_Paulo` in the Dockerfile but the
+   app uses `clock.Now()` (UTC) everywhere except the final string formatting.
+   Quota windows, end-of-day offsets, and "today" all assume UTC day boundary.
+
+5. **`printImage` direct call in `link.go`.** Most `Print<X>` routes go through
+   the internal `printImage` wrapper (`printer.go` → `image.go`) which does
+   `PrintImage` + `PrintAndCut`. `link.go` calls `p.e.PrintImage` directly and
+   then explicitly calls `p.e.PrintAndCut`. If you change the wrapper, audit
+   `link.go` too.
+
+6. **CLI's `print image` subcommand is gone.** The original helper relied on
+   the now-deleted `internal/utils/dither.go`. Re-add when there's a real
+   image-printing feature to support.
+
+7. **`errPrinterOffline` is re-declared per-domain.** Each of `task`, `list`,
+   `link`, `endofday` has its own `errors.New("printer offline")` because the
+   `internal/printer` package keeps it unexported. If you ever want a single
+   source of truth, export it from the printer package.
+
+Items resolved by the refactor (kept here for reference):
+- ~~`queries/list.sql::DeleteLastList` selects from `task` not `list`~~ → fixed.
+- ~~`cmd/web/endOfDay.go` dead handlers~~ → deleted.
+- ~~`cmd/cli/main.go` stub~~ → rewritten as a real subcommand dispatcher.
+- ~~`internal/utils/dither.go` + `rasterize.go`~~ → deleted.
+- ~~`getOpenTasks` ignores `created_by`~~ → fixed in `queries/task.sql`.
+- ~~Temp `.typ`/`.png` file leaks~~ → fixed via `internal/printer/render`.
+- ~~Mixed `time.Now()` / `time.UTC()`~~ → centralised in `internal/clock`.
+- ~~Ad-hoc `fmt.Errorf` and `http.Error` leaking internals~~ → fixed via
+  `internal/apperr` + `cmd/web/httperr.go`.
+- ~~`log.Println` in handler and printer code~~ → replaced with `log/slog`.
 
 ---
 

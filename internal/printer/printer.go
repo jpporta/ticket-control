@@ -4,7 +4,8 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"log/slog"
 	"net"
 	"os"
 	"strconv"
@@ -15,6 +16,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jpporta/ticket-control/internal/repository"
 )
+
+// errPrinterOffline is the unexported sentinel returned from every Print<X>
+// when the printer is disabled. Callers reach it via fmt.Errorf("...: %w",
+// errPrinterOffline); the service layer wraps it with apperr.ErrPrinterOffline
+// if it wants to map to HTTP 503.
+var errPrinterOffline = errors.New("printer offline")
 
 //go:embed models/*.typ
 var models embed.FS
@@ -69,18 +76,18 @@ func (p *Printer) Reset() {
 	p.e.WriteRaw([]byte{0x1B, 0x52, 0x00})
 }
 
-func (p *Printer) TooglePrinter(state bool) {
+func (p *Printer) Toggle(state bool) {
 	p.Enabled = state
 	if state {
 		for _, task := range p.queue {
 			if err := task(); err != nil {
-				fmt.Printf("Error executing queued task: %v\n", err)
+				slog.Error("queued task", "err", err)
 			}
 			time.Sleep(1 * time.Second) // Small delay between tasks
 		}
 		p.queue = nil
 	} else {
 		p.queue = []func() error{}
-		fmt.Println("Printer disabled, tasks will be queued.")
+		slog.Info("printer disabled, jobs will be queued")
 	}
 }

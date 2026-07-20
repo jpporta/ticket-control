@@ -22,6 +22,7 @@ WHERE id = (
 SELECT id, title, priority, created_at
 FROM task
 WHERE completed_at IS NULL
+AND created_by = $3
 ORDER BY created_at DESC, priority DESC
 LIMIT $1 OFFSET $2;
 

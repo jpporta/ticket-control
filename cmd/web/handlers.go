@@ -5,154 +5,81 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/jpporta/ticket-control/internal"
+	"github.com/jpporta/ticket-control/internal/apperr"
+	"github.com/jpporta/ticket-control/internal/clock"
+	"github.com/jpporta/ticket-control/internal/link"
+	"github.com/jpporta/ticket-control/internal/list"
+	"github.com/jpporta/ticket-control/internal/printer"
+	"github.com/jpporta/ticket-control/internal/repository/adapter"
+	"github.com/jpporta/ticket-control/internal/schedule"
+	"github.com/jpporta/ticket-control/internal/service"
+	"github.com/jpporta/ticket-control/internal/task"
 )
 
 type Handlers struct {
-	app *internal.Application
+	svcs     *service.Services
+	users    adapter.User
+	access   adapter.Access
+	printer  *printer.Printer
+	schedule *schedule.Service
 }
 
-type CreateLink struct {
-	Title string `json:"title"`
-	Url   string `json:"url"`
-}
+type ctxKey string
 
-func (h *Handlers) getLink(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("userId").(int32)
-	idStr := r.PathValue("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid link ID", http.StatusBadRequest)
-		return
-	}
-	link, err := h.app.GetLink(r.Context(), int32(id), userId)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error retrieving link: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if link == "" {
-		http.Error(w, "Link not found", http.StatusNotFound)
-		return
-	}
+const (
+	ctxKeyUserID   ctxKey = "userId"
+	ctxKeyUserName ctxKey = "userName"
+)
 
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, link)
-}
+// --- task ---
 
-func (h *Handlers) createLink(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("userId").(int32)
-
-	limitReached, err := h.app.UserHasReachedLinkLimit(r.Context(), userId)
-	if err != nil {
-		http.Error(w, "Error checking link limit", http.StatusInternalServerError)
-		return
-	}
-	if limitReached {
-		http.Error(w, "You have reached your link limit for today", http.StatusForbidden)
-		return
-	}
-
-	var link CreateLink
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&link)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	id, err := h.app.CreateLink(r.Context(), userId, link.Title, link.Url)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error creating link: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"id": %d}`, id)
-}
-
-type CreateList struct {
-	Title string   `json:"title"`
-	Items []string `json:"items"`
-}
-
-func (h *Handlers) createList(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("userId").(int32)
-
-	limitReached, err := h.app.UserHasReachedListLimit(r.Context(), userId)
-	if err != nil {
-		http.Error(w, "Error checking list limit", http.StatusInternalServerError)
-		return
-	}
-	if limitReached {
-		http.Error(w, "You have reached your list limit for today", http.StatusForbidden)
-		return
-	}
-
-	var list CreateList
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&list)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	id, err := h.app.CreateList(r.Context(), userId, list.Title, list.Items)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error creating list: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"id": %d}`, id)
-}
-
-type CreateTask struct {
+type createTaskReq struct {
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	Priority    int32  `json:"priority,omitempty"`
 }
 
 func (h *Handlers) createTask(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("userId").(int32)
-
-	limitReached, err := h.app.UserHasReachedTaskLimit(r.Context(), userId)
+	userID := r.Context().Value(ctxKeyUserID).(int32)
+	var req createTaskReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperrWrite(w, r, fmt.Errorf("%w: %v", apperr.ErrInvalidInput, err))
+		return
+	}
+	if req.Priority == 0 {
+		req.Priority = 1
+	}
+	id, err := h.svcs.Task.CreateTask(r.Context(), task.CreateParams{
+		Title:       req.Title,
+		Description: req.Description,
+		Priority:    req.Priority,
+	}, userID)
 	if err != nil {
-		http.Error(w, "Error checking task limit", http.StatusInternalServerError)
+		httperrWrite(w, r, err)
 		return
 	}
+	writeJSON(w, http.StatusCreated, map[string]int32{"id": id})
+}
 
-	if limitReached {
-		http.Error(w, "You have reached your task limit for today", http.StatusForbidden)
-		return
-	}
-
-	task := CreateTask{
-		Priority: 1,
-	}
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&task)
+func (h *Handlers) doneTask(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(ctxKeyUserID).(int32)
+	taskID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
+		httperrWrite(w, r, fmt.Errorf("%w: %v", apperr.ErrInvalidInput, err))
 		return
 	}
-
-	total, err := h.app.CreateTask(r.Context(), task.Title, task.Description, task.Priority, userId)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error creating task: %v", err), http.StatusInternalServerError)
+	if err := h.svcs.Task.MarkTaskAsDone(r.Context(), int32(taskID), userID); err != nil {
+		httperrWrite(w, r, err)
 		return
 	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"id": %d}`, total)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (h *Handlers) getOpenTasks(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("userId").(int32)
+	userID := r.Context().Value(ctxKeyUserID).(int32)
 	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
 	if err != nil || limit <= 0 {
 		limit = 10
@@ -161,60 +88,105 @@ func (h *Handlers) getOpenTasks(w http.ResponseWriter, r *http.Request) {
 	if err != nil || page < 0 {
 		page = 0
 	}
-	tasks, err := h.app.GetOpenTasks(r.Context(), userId, limit, page)
+	tasks, err := h.svcs.Task.GetOpenTasks(r.Context(), userID, limit, page)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error retrieving tasks: %v", err), http.StatusInternalServerError)
+		httperrWrite(w, r, err)
 		return
 	}
+	writeJSON(w, http.StatusOK, tasks)
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(tasks); err != nil {
-		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
+// --- list ---
+
+type createListReq struct {
+	Title string `json:"title"`
+	Items string `json:"items"`
+}
+
+func listItems(items string) []string {
+	var result []string
+	for _, item := range strings.Split(items, "\n") {
+		if item = strings.TrimSpace(item); item != "" {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func (h *Handlers) createList(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(ctxKeyUserID).(int32)
+	userName := r.Context().Value(ctxKeyUserName).(string)
+	var req createListReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperrWrite(w, r, fmt.Errorf("%w: %v", apperr.ErrInvalidInput, err))
 		return
 	}
+	items := listItems(req.Items)
+	if len(items) == 0 {
+		httperrWrite(w, r, apperr.ErrInvalidInput)
+		return
+	}
+	id, err := h.svcs.List.CreateList(r.Context(), list.CreateParams{
+		Title: req.Title,
+		Items: items,
+	}, userName, userID)
+	if err != nil {
+		httperrWrite(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]int32{"id": id})
+}
+
+// --- link ---
+
+type createLinkReq struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+func (h *Handlers) createLink(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(ctxKeyUserID).(int32)
+	userName := r.Context().Value(ctxKeyUserName).(string)
+	var req createLinkReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperrWrite(w, r, fmt.Errorf("%w: %v", apperr.ErrInvalidInput, err))
+		return
+	}
+	id, err := h.svcs.Link.CreateLink(r.Context(), link.CreateParams{
+		Title: req.Title,
+		URL:   req.URL,
+	}, userName, userID)
+	if err != nil {
+		httperrWrite(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]int32{"id": id})
+}
+
+func (h *Handlers) getLink(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		httperrWrite(w, r, fmt.Errorf("%w: %v", apperr.ErrInvalidInput, err))
+		return
+	}
+	url, err := h.svcs.Link.GetLink(r.Context(), int32(id))
+	if err != nil {
+		httperrWrite(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"url": url})
+}
+
+// --- printer ---
+
+func (h *Handlers) togglePrinter(w http.ResponseWriter, r *http.Request) {
+	h.printer.Toggle(!h.printer.Enabled)
+	writeJSON(w, http.StatusOK, map[string]bool{"enabled": h.printer.Enabled})
 }
 
 func (h *Handlers) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]string{"status": "ok", "now": time.Now().Local().Format(time.RFC3339)}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *Handlers) togglePrinter(w http.ResponseWriter, _ *http.Request) {
-	h.app.Printer.TooglePrinter(!h.app.Printer.Enabled)
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	response := map[string]bool{"enabled": h.app.Printer.Enabled}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *Handlers) doneTask(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("userId").(int32)
-	taskIdStr := r.PathValue("id")
-	if taskIdStr == "" {
-		http.Error(w, "Missing task ID", http.StatusBadRequest)
-		return
-	}
-	taskId, err := strconv.Atoi(taskIdStr)
-	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
-		return
-	}
-
-	err = h.app.MarkTaskAsDone(r.Context(), int32(taskId), userId)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error marking task as done: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	writeJSON(w, http.StatusOK, map[string]string{
+		"status": "ok",
+		"now":    clock.Now().Format(time.RFC3339),
+	})
 }
