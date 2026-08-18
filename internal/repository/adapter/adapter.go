@@ -14,6 +14,7 @@ type (
 	Task     struct{ Q *repository.Queries }
 	List     struct{ Q *repository.Queries }
 	Link     struct{ Q *repository.Queries }
+	Letter   struct{ Q *repository.Queries }
 	Schedule struct{ Q *repository.Queries }
 	EndOfDay struct{ Q *repository.Queries }
 	Events   struct{ Q *repository.Queries }

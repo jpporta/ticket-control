@@ -1,0 +1,25 @@
+# @host = http://localhost:8000
+
+@host=https://ticket.joaoporta.com
+
+POST {{host}}/letter HTTP/1.1
+X-Api-Key: {{API_KEY}}
+Content-Type: application/json
+
+{
+  "title": "Correspondência",
+  "to": "Maria",
+  "from": "João",
+  "sign_off": "Com carinho,",
+  "content": "Querida amiga,\n\nEstou enviando esta carta pela API do servidor. A formatação agora usa o motor Typst com quebra de linha fluida e fontes tipográficas de alta qualidade.\n\n- Sem quebra no meio das palavras\n- Suporte a Markdown: *negrito*, _itálico_ e listas\n- Papel contínuo térmico\n\nAbraços!"
+}
+
+###
+
+POST {{host}}/letter HTTP/1.1
+X-Api-Key: {{API_KEY}}
+Content-Type: application/json
+
+{
+  "content": "Mensagem simples e rápida para a impressora térmica."
+}

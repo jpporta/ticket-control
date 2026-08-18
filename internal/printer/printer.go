@@ -55,8 +55,27 @@ func New(ctx context.Context) *Printer {
 	return printer
 }
 
+// dialRetries/dialBackoff cover transient failures: the printer's TCP port
+// accepts a single client, so a print colliding with a typewriter session (or a
+// socket not yet torn down) fails on the first dial and succeeds moments later.
+const (
+	dialRetries = 3
+	dialBackoff = 2 * time.Second
+)
+
 func (p *Printer) start() (func(), error) {
-	socket, err := net.Dial("tcp", p.IP+":"+strconv.Itoa(p.Port))
+	var socket net.Conn
+	var err error
+	for attempt := range dialRetries {
+		socket, err = net.Dial("tcp", p.IP+":"+strconv.Itoa(p.Port))
+		if err == nil {
+			break
+		}
+		if attempt < dialRetries-1 {
+			slog.Warn("printer dial failed, retrying", "attempt", attempt+1, "err", err)
+			time.Sleep(dialBackoff)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

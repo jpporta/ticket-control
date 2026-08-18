@@ -25,6 +25,17 @@ type Config struct {
 	UpdatedAt pgtype.Timestamp
 }
 
+type Letter struct {
+	ID        int32
+	Title     string
+	Content   string
+	Recipient string
+	Sender    string
+	CreatedAt pgtype.Timestamp
+	CreatedBy int32
+	UpdatedAt pgtype.Timestamp
+}
+
 type Link struct {
 	ID        int32
 	Url       string

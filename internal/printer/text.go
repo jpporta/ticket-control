@@ -34,7 +34,7 @@ func (p *Printer) Cut() {
 
 func (p *Printer) loadTemplates() error {
 	p.templates = make(map[string]*template.Template)
-	for _, name := range []string{"task", "list", "link_header", "end_of_day"} {
+	for _, name := range []string{"task", "list", "link_header", "end_of_day", "letter"} {
 		raw, err := models.ReadFile("models/" + name + ".typ")
 		if err != nil {
 			return err

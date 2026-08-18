@@ -7,9 +7,6 @@ tidy:
 	@echo "Running go mod tidy..."
 	go mod tidy
 
-cli:
-	@echo "Running the CLI application..."
-	go run ./cmd/cli user create --name "$(name)"
 run:
 	@echo "Running the application..."
 	go run ./cmd/web/*
@@ -30,6 +27,14 @@ generate:
 	@echo "Generating code for queries..."
 	sqlc generate
 
+cli:
+	@echo "Running the CLI application..."
+	go run ./cmd/cli user create --name "$(name)"
+
+typst-letter:
+	@echo "Watch Typst letter..."
+	typst watch ./internal/printer/models/letter.typ letter.pdf
+
 typst-task:
 	@echo "Watch Typst task..."
 	typst watch ./internal/printer/models/task.typ task.pdf
@@ -41,3 +46,9 @@ typst-list:
 test-printer:
 	@echo "Running tests for the printer package..."
 	go test -v ./internal/printer/... -count=1
+
+typewriter:
+	go run ./cmd/cli
+
+build-typewriter:
+	go build ./cmd/cli

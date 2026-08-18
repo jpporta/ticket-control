@@ -10,6 +10,7 @@ import (
 
 	"github.com/jpporta/ticket-control/internal/apperr"
 	"github.com/jpporta/ticket-control/internal/clock"
+	"github.com/jpporta/ticket-control/internal/letter"
 	"github.com/jpporta/ticket-control/internal/link"
 	"github.com/jpporta/ticket-control/internal/list"
 	"github.com/jpporta/ticket-control/internal/printer"
@@ -129,6 +130,52 @@ func (h *Handlers) createList(w http.ResponseWriter, r *http.Request) {
 	id, err := h.svcs.List.CreateList(r.Context(), list.CreateParams{
 		Title: req.Title,
 		Items: items,
+	}, userName, userID)
+	if err != nil {
+		httperrWrite(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]int32{"id": id})
+}
+
+// --- letter ---
+
+type createLetterReq struct {
+	Title    string `json:"title,omitempty"`
+	Content  string `json:"content"`
+	To       string `json:"to,omitempty"`
+	ToLabel  string `json:"to_label,omitempty"`
+	From     string `json:"from,omitempty"`
+	SignOff  string `json:"sign_off,omitempty"`
+	Date     string `json:"date,omitempty"`
+	Font     string `json:"font,omitempty"`
+	FontSize string `json:"font_size,omitempty"`
+	Align    string `json:"align,omitempty"`
+}
+
+func (h *Handlers) createLetter(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(ctxKeyUserID).(int32)
+	userName := r.Context().Value(ctxKeyUserName).(string)
+	var req createLetterReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperrWrite(w, r, fmt.Errorf("%w: %v", apperr.ErrInvalidInput, err))
+		return
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		httperrWrite(w, r, apperr.ErrInvalidInput)
+		return
+	}
+	id, err := h.svcs.Letter.CreateLetter(r.Context(), letter.CreateParams{
+		Title:    req.Title,
+		Content:  req.Content,
+		To:       req.To,
+		ToLabel:  req.ToLabel,
+		From:     req.From,
+		SignOff:  req.SignOff,
+		Date:     req.Date,
+		Font:     req.Font,
+		FontSize: req.FontSize,
+		Justify:  req.Align != "left" && req.Align != "center",
 	}, userName, userID)
 	if err != nil {
 		httperrWrite(w, r, err)

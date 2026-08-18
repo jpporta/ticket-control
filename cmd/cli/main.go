@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jpporta/ticket-control/internal/clock"
 	"github.com/jpporta/ticket-control/internal/printer"
 	"github.com/jpporta/ticket-control/internal/repository"
 	"github.com/jpporta/ticket-control/internal/utils"
@@ -17,29 +16,50 @@ import (
 const usage = `ticket-control CLI
 
 Subcommands:
-  user create --name <name>      Create a user, print API key
-  printer test                   Send a test "bip" to the printer
+  user create --name <name>                           Create a user, print API key
+  printer test                                        Send a test "bip" to the printer
+  print letter [flags] <file.md>                      Print a formatted letter from Markdown/text
+  print doc [flags] <file.typ>                        Print a Typst document directly
   print task --title T --description D --priority P   Print a task ticket
   print list --title T --items "a,b,c"                Print a list ticket
+  typewriter [--ip IP] [--port P] [--codepage CP]     Type straight onto the printer.
+                                                      With piped stdin, prints it and cuts.
 
 Run a subcommand with --help for flag details.
 `
 
 func main() {
+	app, err := newApp()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	if len(os.Args) < 2 {
+		if !isTerminal(os.Stdin) {
+			app.typewriter(os.Args[1:])
+			return
+		}
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
 	}
+
 	switch os.Args[1] {
+	case "typewriter":
+		app.typewriter(os.Args[2:])
 	case "user":
 		cmdUser(os.Args[2:])
 	case "printer":
 		cmdPrinter(os.Args[2:])
 	case "print":
-		cmdPrint(os.Args[2:])
+		app.cmdPrint(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 	default:
+		if strings.HasPrefix(os.Args[1], "-") {
+			app.typewriter(os.Args[1:])
+			return
+		}
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s", os.Args[1], usage)
 		os.Exit(2)
 	}
@@ -69,22 +89,6 @@ func cmdPrinter(args []string) {
 		printerTest(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "printer: unknown subcommand %q\n", args[0])
-		os.Exit(2)
-	}
-}
-
-func cmdPrint(args []string) {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "print: missing subcommand")
-		os.Exit(2)
-	}
-	switch args[0] {
-	case "task":
-		printTask(args[1:])
-	case "list":
-		printList(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "print: unknown subcommand %q\n", args[0])
 		os.Exit(2)
 	}
 }
@@ -129,45 +133,3 @@ func printerTest(args []string) {
 		panic(err)
 	}
 }
-
-func printTask(args []string) {
-	fs := flag.NewFlagSet("print task", flag.ExitOnError)
-	title := fs.String("title", "", "task title")
-	desc := fs.String("description", "", "task description")
-	prio := fs.Int("priority", 0, "task priority (-2..5)")
-	if err := fs.Parse(args); err != nil {
-		os.Exit(2)
-	}
-	if *title == "" {
-		fmt.Fprintln(os.Stderr, "--title is required")
-		os.Exit(2)
-	}
-	p := printer.New(context.Background())
-	if err := p.PrintTask(0, *title, *desc, int32(*prio), "CLI", clock.Now()); err != nil {
-		panic(err)
-	}
-}
-
-func printList(args []string) {
-	fs := flag.NewFlagSet("print list", flag.ExitOnError)
-	title := fs.String("title", "", "list title")
-	items := fs.String("items", "", "comma-separated items")
-	if err := fs.Parse(args); err != nil {
-		os.Exit(2)
-	}
-	if *title == "" || *items == "" {
-		fmt.Fprintln(os.Stderr, "--title and --items are required")
-		os.Exit(2)
-	}
-	p := printer.New(context.Background())
-	if err := p.PrintList(printer.ListInput{
-		Title:     *title,
-		Content:   strings.Split(*items, ","),
-		CreatedBy: "CLI",
-	}); err != nil {
-		panic(err)
-	}
-}
-
-// print image: removed; see task 9.1 (legacy implementation depended on
-// internal/utils/dither.go, which has been deleted).

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jpporta/ticket-control/internal/endofday"
 	"github.com/jpporta/ticket-control/internal/events"
+	"github.com/jpporta/ticket-control/internal/letter"
 	"github.com/jpporta/ticket-control/internal/link"
 	"github.com/jpporta/ticket-control/internal/list"
 	"github.com/jpporta/ticket-control/internal/ports"
@@ -20,6 +21,7 @@ type Services struct {
 	Task     *task.Service
 	List     *list.Service
 	Link     *link.Service
+	Letter   *letter.Service
 	Schedule *schedule.Service
 	EndOfDay *endofday.Service
 	Events   *events.Service
@@ -31,6 +33,7 @@ type Deps struct {
 	Task     task.Repo
 	List     list.Repo
 	Link     link.Repo
+	Letter   letter.Repo
 	Schedule schedule.Repo
 	EndOfDay endofday.Repo
 	Events   events.Repo
@@ -44,6 +47,7 @@ func NewServices(d Deps, printer ports.Printer, checkFuncs map[string]schedule.C
 	t := task.New(d.Task, printer)
 	l := list.New(d.List, printer)
 	ln := link.New(d.Link, printer)
+	let := letter.New(d.Letter, printer)
 	sc := schedule.New(d.Schedule, printer,
 		func(_ context.Context, title, description string, userID int32) (int32, error) {
 			return t.CreateTask(context.Background(), task.CreateParams{
@@ -60,6 +64,7 @@ func NewServices(d Deps, printer ports.Printer, checkFuncs map[string]schedule.C
 		Task:     t,
 		List:     l,
 		Link:     ln,
+		Letter:   let,
 		Schedule: sc,
 		EndOfDay: eod,
 		Events:   ev,

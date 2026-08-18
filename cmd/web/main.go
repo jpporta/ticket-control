@@ -58,6 +58,7 @@ func main() {
 		Task:     adapter.Task{Q: q},
 		List:     adapter.List{Q: q},
 		Link:     adapter.Link{Q: q},
+		Letter:   adapter.Letter{Q: q},
 		Schedule: adapter.Schedule{Q: q},
 		EndOfDay: adapter.EndOfDay{Q: q},
 		Events:   adapter.Events{Q: q},
@@ -82,6 +83,7 @@ func main() {
 	mux.HandleFunc("PATCH /task/{id}", protectedRoute(h.doneTask))
 	mux.HandleFunc("GET /task", protectedRoute(h.getOpenTasks))
 	mux.HandleFunc("POST /list", protectedRoute(h.createList))
+	mux.HandleFunc("POST /letter", protectedRoute(h.createLetter))
 	mux.HandleFunc("POST /link", protectedRoute(h.createLink))
 	mux.HandleFunc("GET /link/{id}", protectedRoute(h.getLink))
 	mux.HandleFunc("PUT /end-of-day", protectedRoute(h.endOfDay))

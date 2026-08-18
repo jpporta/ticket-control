@@ -18,6 +18,7 @@ type Printer interface {
 	PrintList(list printer.ListInput) error
 	PrintLink(link printer.LinkInput) error
 	PrintEndOfDay(input printer.EndOfDayInput) error
+	PrintLetter(input printer.LetterInput) error
 	PrintBip() error
 	Toggle(enabled bool)
 }
