@@ -1,8 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -225,6 +232,44 @@ func (h *Handlers) getLink(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- printer ---
+
+const (
+	maxImageUploadSize = 12 << 20 // 12 MiB compressed input
+	maxImagePixels     = 20_000_000
+)
+
+// printImage accepts the raw image bytes from an Apple Shortcut. The Shortcut
+// should convert iPhone photos to JPEG first; Go's standard library does not
+// decode HEIC.
+func (h *Handlers) printImage(w http.ResponseWriter, r *http.Request) {
+	body := http.MaxBytesReader(w, r.Body, maxImageUploadSize)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		httperrWrite(w, r, apperr.ErrInvalidInput)
+		return
+	}
+
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil || config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > maxImagePixels {
+		httperrWrite(w, r, apperr.ErrInvalidInput)
+		return
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		httperrWrite(w, r, apperr.ErrInvalidInput)
+		return
+	}
+
+	if err := h.printer.PrintImage(img); err != nil {
+		if errors.Is(err, printer.ErrPrinterOffline) {
+			writeJSON(w, http.StatusAccepted, map[string]string{"status": "queued"})
+			return
+		}
+		httperrWrite(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "printed"})
+}
 
 func (h *Handlers) togglePrinter(w http.ResponseWriter, r *http.Request) {
 	h.printer.Toggle(!h.printer.Enabled)

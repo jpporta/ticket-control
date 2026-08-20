@@ -69,11 +69,11 @@ func main() {
 	}
 
 	h := &Handlers{
-		svcs:      svcs,
-		users:     adapter.User{Q: q},
-		access:    adapter.Access{Q: q},
-		printer:   p,
-		schedule:  svcs.Schedule,
+		svcs:     svcs,
+		users:    adapter.User{Q: q},
+		access:   adapter.Access{Q: q},
+		printer:  p,
+		schedule: svcs.Schedule,
 	}
 
 	mux := http.NewServeMux()
@@ -93,6 +93,7 @@ func main() {
 	mux.HandleFunc("PUT /schedule", protectedRoute(h.toggleSchedule))
 	mux.HandleFunc("PUT /toggle-printer", protectedRoute(h.togglePrinter))
 	mux.HandleFunc("POST /events", protectedRoute(h.postDayEvents))
+	mux.HandleFunc("POST /image", protectedRoute(h.printImage))
 	mux.HandleFunc("GET /health", h.healthCheck)
 
 	signalCh := make(chan os.Signal, 1)

@@ -17,11 +17,11 @@ import (
 	"github.com/jpporta/ticket-control/internal/repository"
 )
 
-// errPrinterOffline is the unexported sentinel returned from every Print<X>
-// when the printer is disabled. Callers reach it via fmt.Errorf("...: %w",
-// errPrinterOffline); the service layer wraps it with apperr.ErrPrinterOffline
-// if it wants to map to HTTP 503.
-var errPrinterOffline = errors.New("printer offline")
+// ErrPrinterOffline is returned when a print is queued because the printer is disabled.
+var ErrPrinterOffline = errors.New("printer offline")
+
+// Keep the package-local name for the existing printable artifact methods.
+var errPrinterOffline = ErrPrinterOffline
 
 //go:embed models/*.typ
 var models embed.FS

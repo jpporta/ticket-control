@@ -13,15 +13,15 @@ run:
 
 new_migration:
 	@echo "Creating new migration file..."
-	goose create $(name) sql
+	go run github.com/pressly/goose/v3/cmd/goose@latest -dir migrations create $(name) sql
 
 up:
 	@echo "Applying all up migrations..."
-	goose up
+	go run github.com/pressly/goose/v3/cmd/goose@latest -dir migrations postgres "$$DB_URL" up
 
 down:
-	@echo "Rolling back a single migrations..."
-	goose down
+	@echo "Rolling back a single migration..."
+	go run github.com/pressly/goose/v3/cmd/goose@latest -dir migrations postgres "$$DB_URL" down
 
 generate:
 	@echo "Generating code for queries..."
